@@ -25,8 +25,20 @@ USING (playerID)
 LIMIT 10;
 
 -- (c) What is the name and total pay of the player with the largest total salary?
+-- Question in my opinion is ambiguous. salary is annualized but it is asking for the largest total salary, implying a sum of salaries
+-- In addition total pay is not well defined but can be interpreted as the sum of all salaries for all years a player has played
 
--- This one is much faster (0.10sec)
+-- SELECT m.nameGiven, s.total_pay
+-- FROM Master AS m 
+-- INNER JOIN
+--     (SELECT playerID, SUM(salary) AS total_pay
+--     FROM Salaries
+--     GROUP BY salary
+--     ORDER BY SUM(salary) DESC
+--     LIMIT 1) AS s;
+-- ON m.playerID=s.playerID;
+
+
 SELECT m.nameGiven, s.salary
 FROM 
     (SELECT playerID, salary
@@ -38,7 +50,7 @@ FROM
 LEFT JOIN Master AS m 
 ON s.playerID=m.playerID
 ORDER BY s.salary DESC
-LIMIT 10;
+LIMIT 5;
 
 -- (d) What is the average number of Home Runs a player has?
 SELECT AVG(HR)
@@ -76,32 +88,34 @@ USING (playerID);
 -- database. Create a LOAD statement that will load the data for the Fielding CSV (Fielding.csv)
 -- into its associated table. You should verify that your LOAD statement operates correctly and
 -- issues no warnings.
-DROP TABLE IF EXISTS `Fielding2`;
-CREATE TABLE `Fielding2` (
-  `playerID` varchar(255) DEFAULT NULL,
-  `yearID` int(11) DEFAULT NULL,
-  `stint` int(11) DEFAULT NULL,
-  `teamID` varchar(255) DEFAULT NULL,
-  `lgID` varchar(255) DEFAULT NULL,
-  `POS` varchar(255) DEFAULT NULL,
-  `G` int(11) DEFAULT NULL,
-  `GS` varchar(255) DEFAULT NULL,
-  `InnOuts` varchar(255) DEFAULT NULL,
-  `PO` int(11) DEFAULT NULL,
-  `A` int(11) DEFAULT NULL,
-  `E` int(11) DEFAULT NULL,
-  `DP` int(11) DEFAULT NULL,
-  `PB` varchar(255) DEFAULT NULL,
-  `WP` varchar(255) DEFAULT NULL,
-  `SB` varchar(255) DEFAULT NULL,
-  `CS` varchar(255) DEFAULT NULL,
-  `ZR` varchar(255) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+-- USED TO TEST LOAD STATEMENT WAS CORRECT
+-- DROP TABLE IF EXISTS `Fielding2`;
+-- CREATE TABLE `Fielding2` (
+--   `playerID` varchar(255) DEFAULT NULL,
+--   `yearID` int(11) DEFAULT NULL,
+--   `stint` int(11) DEFAULT NULL,
+--   `teamID` varchar(255) DEFAULT NULL,
+--   `lgID` varchar(255) DEFAULT NULL,
+--   `POS` varchar(255) DEFAULT NULL,
+--   `G` int(11) DEFAULT NULL,
+--   `GS` varchar(255) DEFAULT NULL,
+--   `InnOuts` varchar(255) DEFAULT NULL,
+--   `PO` int(11) DEFAULT NULL,
+--   `A` int(11) DEFAULT NULL,
+--   `E` int(11) DEFAULT NULL,
+--   `DP` int(11) DEFAULT NULL,
+--   `PB` varchar(255) DEFAULT NULL,
+--   `WP` varchar(255) DEFAULT NULL,
+--   `SB` varchar(255) DEFAULT NULL,
+--   `CS` varchar(255) DEFAULT NULL,
+--   `ZR` varchar(255) DEFAULT NULL
+-- ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- Credit Source: https://stackoverflow.com/questions/2675323/mysql-load-null-values-from-csv-data
 LOAD DATA
     LOCAL
-    INFILE 'Fielding.csv'
-    REPLACE
+    INFILE 'Fielding.csv' REPLACE
     INTO TABLE Fielding2
     FIELDS TERMINATED BY ','
     LINES TERMINATED BY '\n'
@@ -115,49 +129,152 @@ LOAD DATA
         A       = if(@vA='', 0, @vA),
         E       = if(@vE='', 0, @vE),
         DP      = if(@vDP='', 0, @vDP);
-    
-SELECT COUNT(*)
-FROM Fielding AS f1
-INNER JOIN Fielding2 AS f2
-ON f1.playerID = f2.playerID;
 
-SELECT (
-(SELECT * FROM Fielding LIMIT 1) 
--
-(SELECT * FROM Fielding2 LIMIT 1) );
 
-SELECT playerID,yearID,stint,teamID,lgID,Pos,G,GS,InnOuts,PO,A,E,DP,PB,WP,SB,CS,ZR
-FROM Fielding AS f1
-WHERE NOT EXISTS
-    (SELECT playerID,yearID,stint,teamID,lgID,Pos,G,GS,InnOuts,PO,A,E,DP,PB,WP,SB,CS,ZR
-    FROM Fielding2 AS f2
-    WHERE 
-    f1.playerID=f2.playerID
-    AND f1.yearID=f2.yearID
-    AND f1.stint=f2.stint 
-    AND f1.teamID=f2.teamID 
-    AND f1.lgID=f2.lgID 
-    AND f1.Pos=f2.Pos 
-    AND f1.G=f2.G 
-    AND f1.GS=f2.GS 
-    AND f1.InnOuts=f2.InnOuts 
-    AND f1.PO=f2.PO 
-    AND f1.A=f2.A 
-    AND f1.E=f2.E 
-    AND f1.DP=f2.DP 
-    AND f1.PB=f2.PB 
-    AND f1.WP=f2.WP 
-    AND f1.SB=f2.SB 
-    AND f1.CS=f2.CS 
-    AND f1.ZR=f2.ZR) 
-LIMIT 100;
+-- QUESTION 3. The SQL file is missing both primary and foreign keys (which is just as well since some of the
+-- data causes problems when such keys are included, as you may have discovered when doing the
+-- previous questions). We will assume that the baseball database is sufficiently normalized that we
+-- do not want to change the basic set of tables. However, we do want to add primary- and foreign-
+-- key constraints.
 
--- #################################################
--- PART 2 - 
--- #################################################
 
+-- (1) Determine the primary and foreign keys needed for the baseball database
+
+-- First determine candidate Primary keys
+-- The primary key is used to uniquely identify a row of the table. No two keys can be the same.
+-- Strategy is to check is a key is unique and then make a decision on whether this condition makes sense for the attributes
+
+-- This query was used to test uniqueness
+-- SELECT COL, COUNT(*) AS cnt  FROM TABLE_NAME GROUP BY COL ORDER BY cnt DESC LIMIT 10;
+
+-- Masters -> playerID
+-- Batting -> (playerID, yearID, stint) -- might be able to use stint to prim key
+-- Pitching -> (playerID, yearID, stint)
+-- Fielding -> (playerID, yearID, stint, Pos)
+-- AllstarFull - > (playerID, gameID)
+-- HallOfFame -> (playerID, yearID, votedBy)
+-- Managers -> NONE
+-- Teams -> (yearID,teamID)
+-- BattingPost -> (playerID,yearID,round)
+-- PitchingPost -> (playerID,yearID,round)
+-- TeamFranchises -> franchID
+-- FieldingOF -> (playerID,yearID,stint)
+-- ManagersHalf -> (playerID,yearID,half)
+-- TeamsHalf -> (teamID,yearID,half)
+-- Salaries -> (playerID,teamID,yearID)
+-- SeriesPost -> (yearID, round)
+-- AwardsManagers -> (playerID,yearID,awardID) -- This assumes that an award cannot be given to the same player the same year more than once
+-- AwardsPlayers -> (playerID,yearID,awardID,lgID) -- Baseball Magazine has given the same award to the same player in different leagues, had to add lgID to make unique
+-- AwardsShareManagers -> (playerID,yearID,awardID)
+-- AwardsSharePlayers -> (playerID,yearID,awardID)
+-- FieldingPost -> (playerID,yearID,round,POS)
+-- Appearances -> (playerID,yearID,teamID)
+-- Schools -> schoolID
+-- CollegePlaying -> NONE
+-- FieldingOFSplit -> (playerID,yearID,stint,POS)
+-- Parks -> `park.key`
+-- HomeGames -> (`year.key`,`park.key`,`team.key`)
+
+-- Second determine foreign key realtionships. These relatonships will constrain the key so that it
+-- must appear in the referenced table. 
+
+-- Anything with playerID should reference the Master TABLE
+-- Batting, Fielding, Pitching, AllstarFull, Managers, BattingPost, PitchingPost, ManagersHalf, TeamsHalf, Salaries, FieldingPost, Appearances, FieldingOFsplit
+--     should reference teams via teamID, yearID
+-- Teams reference franchises via franchID
+-- Seriespost teamIDwinner and teamIDloser should appear in the teams table
+-- College playing should reference school table
+-- Homegames reference team,year and park
+
+
+
+
+-- (2) Write the necessary SQL to add the primary and foreign keys to this database. When doing
+-- this, keep in mind the fact that there is missing data, as you may have noticed from the previous
+-- questions, and so your SQL will need to address this issue.
+
+-- ADD ALL PRIMARY KEYS
 ALTER TABLE Master
 ADD PRIMARY KEY (playerID);
+
+ALTER TABLE Batting
+ADD PRIMARY KEY (playerID, yearID, stint);
+
+ALTER TABLE Pitching
+ADD PRIMARY KEY (playerID, yearID, stint);
+
+--FIX!
+-- ERROR 1062 (23000): Duplicate entry 'aaronha01-1975-1-OF' for key 'PRIMARY'
+SELECT playerID, yearID, stint, Pos, COUNT(*) AS cnt  FROM Fielding GROUP BY playerID, yearID, stint, Pos ORDER BY cnt DESC LIMIT 10;
+
+ALTER TABLE Fielding
+ADD PRIMARY KEY (playerID, yearID, stint, Pos);
+
+ALTER TABLE AllstarFull
+ADD PRIMARY KEY (playerID, gameID);
+
+ALTER TABLE HallOfFame
+ADD PRIMARY KEY (playerID, yearID, votedBy);
+
+ALTER TABLE Teams
+ADD PRIMARY KEY (yearID,teamID);
+
+ALTER TABLE BattingPost
+ADD PRIMARY KEY (playerID, yearID, round);
+
+ALTER TABLE PitchingPost
+ADD PRIMARY KEY (playerID, yearID, round);
+
+ALTER TABLE TeamsFranchises
+ADD PRIMARY KEY (franchID);
+
+ALTER TABLE FieldingOF
+ADD PRIMARY KEY (playerID, yearID, stint);
+
+ALTER TABLE ManagersHalf
+ADD PRIMARY KEY (playerID, yearID, half);
+
+ALTER TABLE TeamsHalf
+ADD PRIMARY KEY (teamID, yearID, half);
+
+ALTER TABLE Salaries
+ADD PRIMARY KEY (playerID, teamID, yearID);
+
+ALTER TABLE SeriesPost
+ADD PRIMARY KEY (yearID, round);
+
+ALTER TABLE AwardsManagers
+ADD PRIMARY KEY (playerID, yearID, awardID);
+
+ALTER TABLE AwardsPlayers
+ADD PRIMARY KEY (playerID, yearID, awardID, lgID);
+
+ALTER TABLE AwardsShareManagers
+ADD PRIMARY KEY (playerID, yearID, awardID);
+
+ALTER TABLE AwardsSharePlayers
+ADD PRIMARY KEY (playerID, yearID, awardID);
+
+ALTER TABLE FieldingPost
+ADD PRIMARY KEY (playerID, yearID, round, POS);
+
+ALTER TABLE Appearances
+ADD PRIMARY KEY (playerID, yearID, teamID);
+
+ALTER TABLE Schools
+ADD PRIMARY KEY (schoolID);
+
+ALTER TABLE FieldingOFsplit
+ADD PRIMARY KEY (playerID, yearID, stint, POS);
+
+ALTER TABLE Parks
+ADD PRIMARY KEY (`park.key`);
+
+ALTER TABLE HomeGames
+ADD PRIMARY KEY (`year.key`, `park.key`, `team.key`);
+
+
+-- ADD ALL FOREIGN KEYS
 
 ALTER TABLE Batting
 ADD FOREIGN KEY (playerID) REFERENCES Master(playerID);
@@ -165,5 +282,307 @@ ADD FOREIGN KEY (playerID) REFERENCES Master(playerID);
 ALTER TABLE Pitching
 ADD FOREIGN KEY (playerID) REFERENCES Master(playerID);
 
+    -- Fielding contains playerID's that do not appear in the Master table.
+    -- This query will find those ID's and delete them from the table
+    DELETE FROM Fielding
+    WHERE playerID IN
+        (SELECT tmp.playerID
+        FROM 
+            (SELECT child.*
+            FROM Fielding AS child
+            LEFT JOIN Master AS parent
+            ON child.playerID=parent.playerID
+            WHERE parent.playerID IS NULL)
+        AS tmp);
+    -- Results from subquery
+    -- +----------+--------+-------+--------+------+------+------+------+---------+------+------+------+------+------+------+------+------+------+
+    -- | playerID | yearID | stint | teamID | lgID | POS  | G    | GS   | InnOuts | PO   | A    | E    | DP   | PB   | WP   | SB   | CS   | ZR   |
+    -- +----------+--------+-------+--------+------+------+------+------+---------+------+------+------+------+------+------+------+------+------+
+    -- | mcclo01  |   1875 |     1 | WS6    | NA   | C    |   11 |      |         |   32 |    3 |   17 |    0 | 0    |      |      |      |      |
+    -- | colli01  |   1892 |     1 | SLN    | NL   | OF   |    1 |      |         |    2 |    0 |    0 |    0 |      |      |      |      |      |
+    -- +----------+--------+-------+--------+------+------+------+------+---------+------+------+------+------+------+------+------+------+------+
+    -- After Delete:
+    -- Query OK, 2 rows affected (1.00 sec)
+
+-- Now the foreign key constraint can be applied
 ALTER TABLE Fielding
 ADD FOREIGN KEY (playerID) REFERENCES Master(playerID);
+
+ALTER TABLE AllstarFull
+ADD FOREIGN KEY (playerID) REFERENCES Master(playerID);
+
+-- The foreign key relation can't be made for HallOfFame
+-- This query was used to find the value missing from the referenced table
+    -- SELECT child.*
+    -- FROM HallOfFame AS child
+    -- LEFT JOIN Master AS parent
+    -- ON child.playerID=parent.playerID
+    -- WHERE parent.playerID IS NULL
+    
+    -- Returns
+    -- +----------+--------+---------+---------+--------+-------+----------+----------+-------------+
+    -- | playerID | yearid | votedBy | ballots | needed | votes | inducted | category | needed_note |
+    -- +----------+--------+---------+---------+--------+-------+----------+----------+-------------+
+    -- | drewj.01 |   2017 | BBWAA   |     442 |    332 |     0 | N        | Player   |             |
+    -- +----------+--------+---------+---------+--------+-------+----------+----------+-------------+
+
+    -- I suspect this is a typo, but to confirm we check the Master, Fielding, and Batting tables for a similar name
+    -- SELECT playerID FROM Master WHERE playerID LIKE 'drewj%'
+    -- UNION
+    -- (SELECT playerID FROM Batting WHERE playerID LIKE 'drewj%')
+    -- UNION
+    -- (SELECT playerID FROM Fielding WHERE playerID LIKE 'drewj%')
+    
+    -- Returns:
+    -- +----------+
+    -- | playerID |
+    -- +----------+
+    -- | drewjd01 |
+    -- +----------+
+    
+    -- We are confident this is a typo and correct it with the following query
+    UPDATE HallOfFame SET playerID='drewjd01' WHERE playerID='drewj.01';
+
+-- Now the foreign key constriaint can be applied
+ALTER TABLE HallOfFame
+ADD FOREIGN KEY (playerID) REFERENCES Master(playerID);
+
+ALTER TABLE Managers
+ADD FOREIGN KEY (playerID) REFERENCES Master(playerID);
+
+ALTER TABLE BattingPost
+ADD FOREIGN KEY (playerID) REFERENCES Master(playerID);
+
+ALTER TABLE PitchingPost
+ADD FOREIGN KEY (playerID) REFERENCES Master(playerID);
+
+ALTER TABLE FieldingOF
+ADD FOREIGN KEY (playerID) REFERENCES Master(playerID);
+
+ALTER TABLE ManagersHalf
+ADD FOREIGN KEY (playerID) REFERENCES Master(playerID);
+
+-- Cannot add foreign key to salaries. The following query was used to find missing playerIDs
+    -- SELECT child.*
+    -- FROM Salaries AS child
+    -- LEFT JOIN Master AS parent
+    -- ON child.playerID=parent.playerID
+    -- WHERE parent.playerID IS NULL
+
+    -- Result:
+    -- +--------+--------+------+-----------+----------+
+    -- | yearID | teamID | lgID | playerID  | salary   |
+    -- +--------+--------+------+-----------+----------+
+    -- |   2016 | BOS    | AL   | castiru02 | 11400000 |
+    -- |   2016 | TOR    | AL   | dicker.01 | 12000000 |
+    -- |   2016 | HOU    | AL   | harriwi10 |   525500 |
+    -- |   2016 | LAD    | NL   | montafr02 |   510000 |
+    -- |   2016 | ATL    | NL   | pierza.01 |  3000000 |
+    -- |   2016 | COL    | NL   | rosajo01  | 12500000 |
+    -- |   2016 | NYY    | AL   | sabatc.01 | 25000000 |
+    -- |   2016 | NYY    | AL   | willima10 |   509700 |
+    -- +--------+--------+------+-----------+----------+
+
+    -- Try using bbredID to crossreference into the master table
+    -- SELECT m.playerID AS m_playerID, m.bbrefID, s.playerID AS s_playerID 
+    -- FROM Master AS m
+    -- INNER JOIN 
+    --     (SELECT child.*
+    --     FROM Salaries AS child
+    --     LEFT JOIN Master AS parent
+    --     ON child.playerID=parent.playerID
+    --     WHERE parent.playerID IS NULL)
+    --     AS s
+    -- ON m.bbrefID=s.playerID;
+    -- Returns:
+    -- +------------+-----------+------------+
+    -- | m_playerID | bbrefID   | s_playerID |
+    -- +------------+-----------+------------+
+    -- | castiru01  | castiru02 | castiru02  |
+    -- | delarjo01  | rosajo01  | rosajo01   |
+    -- | dickera01  | dicker.01 | dicker.01  |
+    -- | harriwi02  | harriwi10 | harriwi10  |
+    -- | montafr01  | montafr02 | montafr02  |
+    -- | pierzaj01  | pierza.01 | pierza.01  |
+    -- | sabatcc01  | sabatc.01 | sabatc.01  |
+    -- | willima07  | willima10 | willima10  |
+    -- +------------+-----------+------------+
+
+    -- All the playerID's in question appear in the master table
+    -- if joined using the bbrefID. To fix the problem we can update all the playerIDs
+    -- to match the Master table playerID
+
+    -- Credit Source: https://stackoverflow.com/questions/11588710/mysql-update-query-with-sub-query#
+    UPDATE Salaries AS s
+    INNER JOIN
+        -- This will join the query above to the original salary table to allow the update
+        (SELECT m.playerID AS mpID, m.bbrefID, s.playerID AS spID
+        FROM Master AS m
+        INNER JOIN 
+            (SELECT child.*
+            FROM Salaries AS child
+            LEFT JOIN Master AS parent
+            ON child.playerID=parent.playerID
+            WHERE parent.playerID IS NULL)
+            AS s
+        ON m.bbrefID=s.playerID) AS tmp
+    ON s.playerID=tmp.spID
+    -- Update the playerIDs in salary to match Master
+    SET s.playerID=tmp.mpID;
+    -- Query OK, 8 rows affected (0.20 sec)
+    -- Rows matched: 8  Changed: 8  Warnings: 0
+    
+-- Now the foreign key contraint can be applied
+ALTER TABLE Salaries
+ADD FOREIGN KEY (playerID) REFERENCES Master(playerID);
+
+ALTER TABLE AwardsManagers
+ADD FOREIGN KEY (playerID) REFERENCES Master(playerID);
+
+ALTER TABLE AwardsPlayers
+ADD FOREIGN KEY (playerID) REFERENCES Master(playerID);
+
+ALTER TABLE AwardsShareManagers
+ADD FOREIGN KEY (playerID) REFERENCES Master(playerID);
+
+ALTER TABLE AwardsSharePlayers
+ADD FOREIGN KEY (playerID) REFERENCES Master(playerID);
+
+ALTER TABLE FieldingPost
+ADD FOREIGN KEY (playerID) REFERENCES Master(playerID);
+
+ALTER TABLE Appearances
+ADD FOREIGN KEY (playerID) REFERENCES Master(playerID);
+
+ALTER TABLE CollegePlaying
+ADD FOREIGN KEY (playerID) REFERENCES Master(playerID);
+
+ALTER TABLE FieldingOFsplit
+ADD FOREIGN KEY (playerID) REFERENCES Master(playerID);
+
+
+ALTER TABLE Batting
+ADD FOREIGN KEY (yearID,teamID) REFERENCES Teams(yearID,teamID);
+
+ALTER TABLE Fielding
+ADD FOREIGN KEY (yearID,teamID) REFERENCES Teams(yearID,teamID);
+
+ALTER TABLE Pitching
+ADD FOREIGN KEY (yearID,teamID) REFERENCES Teams(yearID,teamID);
+
+ALTER TABLE AllstarFull
+ADD FOREIGN KEY (yearID,teamID) REFERENCES Teams(yearID,teamID);
+
+ALTER TABLE Managers
+ADD FOREIGN KEY (yearID,teamID) REFERENCES Teams(yearID,teamID);
+
+ALTER TABLE BattingPost
+ADD FOREIGN KEY (yearID,teamID) REFERENCES Teams(yearID,teamID);
+
+ALTER TABLE PitchingPost
+ADD FOREIGN KEY (yearID,teamID) REFERENCES Teams(yearID,teamID);
+
+ALTER TABLE ManagersHalf
+ADD FOREIGN KEY (yearID,teamID) REFERENCES Teams(yearID,teamID);
+
+ALTER TABLE TeamsHalf
+ADD FOREIGN KEY (yearID,teamID) REFERENCES Teams(yearID,teamID);
+
+-- Cannot add foreign key to salaries that references teams
+    -- Use this query to find all the missing teamID,yearID
+    -- SELECT DISTINCT child.yearID AS s_yearID, child.teamID AS s_teamID, parent.yearID AS t_yearID, parent.teamID AS t_teamID
+    -- FROM Salaries AS child
+    -- LEFT JOIN Teams AS parent
+    -- ON child.yearID=parent.yearID AND child.teamID=parent.teamID
+    -- WHERE parent.teamID IS NULL;
+    -- Result:
+    -- +----------+----------+----------+----------+
+    -- | s_yearID | s_teamID | t_yearID | t_teamID |
+    -- +----------+----------+----------+----------+
+    -- |     2016 | CHW      |     NULL | NULL     |
+    -- |     2016 | NYY      |     NULL | NULL     |
+    -- |     2016 | STL      |     NULL | NULL     |
+    -- |     2016 | SFG      |     NULL | NULL     |
+    -- |     2016 | LAD      |     NULL | NULL     |
+    -- |     2016 | TBR      |     NULL | NULL     |
+    -- |     2016 | CHC      |     NULL | NULL     |
+    -- |     2016 | WSN      |     NULL | NULL     |
+    -- |     2016 | NYM      |     NULL | NULL     |
+    -- |     2016 | SDP      |     NULL | NULL     |
+    -- |     2016 | KCR      |     NULL | NULL     |
+    -- +----------+----------+----------+----------+
+    
+    -- It seems that these teams do not exist in the teams table. They are all
+    -- from the year 2016. We can insert them so
+    -- the key exists and all other fields default to NULL
+
+    INSERT INTO Teams (yearID, TeamID)
+    SELECT DISTINCT child.yearID AS s_yearID, child.teamID AS s_teamID
+    FROM Salaries AS child
+    LEFT JOIN Teams AS parent
+    ON child.yearID=parent.yearID AND child.teamID=parent.teamID
+    WHERE parent.teamID IS NULL;
+    -- Query OK, 11 rows affected (0.86 sec)
+    -- Records: 11  Duplicates: 0  Warnings: 0
+
+-- Now we can add the contraint
+ALTER TABLE Salaries
+ADD FOREIGN KEY (yearID,teamID) REFERENCES Teams(yearID,teamID);
+
+ALTER TABLE FieldingPost
+ADD FOREIGN KEY (yearID,teamID) REFERENCES Teams(yearID,teamID);
+
+ALTER TABLE Appearances
+ADD FOREIGN KEY (yearID,teamID) REFERENCES Teams(yearID,teamID);
+
+ALTER TABLE FieldingOFsplit
+ADD FOREIGN KEY (yearID,teamID) REFERENCES Teams(yearID,teamID);
+
+ALTER TABLE SeriesPost
+ADD FOREIGN KEY (yearID,teamIDwinner) REFERENCES Teams(yearID,teamID),
+ADD FOREIGN KEY (yearID,teamIDloser) REFERENCES Teams(yearID,teamID);
+
+ALTER TABLE HomeGames
+ADD FOREIGN KEY (`year.key`,`team.key`) REFERENCES Teams(yearID,teamID);
+
+
+-- some franchID are NULL from the previous additions to the Teams table. This indicates
+-- not that there is no franchise, only that the franchID is unassigned
+ALTER TABLE Teams
+ADD FOREIGN KEY (franchID) REFERENCES TeamsFranchises(franchID);
+
+
+-- Some schools are not present in the schools table but are referenced in the CollegePlaying table
+
+    -- Use this query to find all the missing schools
+    -- SELECT DISTINCT child.schoolID AS c_schoolID, parent.schoolID AS s_schoolID
+    -- FROM CollegePlaying AS child
+    -- LEFT JOIN Schools AS parent
+    -- ON child.schoolID=parent.schoolID
+    -- WHERE parent.schoolID IS NULL;
+    --     Returns:
+    -- +------------+------------+
+    -- | c_schoolID | s_schoolID |
+    -- +------------+------------+
+    -- | ctpostu    | NULL       |
+    -- | txutper    | NULL       |
+    -- | txrange    | NULL       |
+    -- | caallia    | NULL       |
+    -- +------------+------------+
+
+    -- We can now insert these new schools into the schools table
+    INSERT INTO Schools (schoolID)
+    SELECT DISTINCT child.schoolID AS c_schoolID
+    FROM CollegePlaying AS child
+    LEFT JOIN Schools AS parent
+    ON child.schoolID=parent.schoolID
+    WHERE parent.schoolID IS NULL;
+    -- Query OK, 4 rows affected (0.40 sec)
+    -- Records: 4  Duplicates: 0  Warnings: 0
+
+ALTER TABLE CollegePlaying
+ADD FOREIGN KEY (schoolID) REFERENCES Schools(schoolID);
+
+
+ALTER TABLE HomeGames
+ADD FOREIGN KEY (`park.key`) REFERENCES Parks(`park.key`);
