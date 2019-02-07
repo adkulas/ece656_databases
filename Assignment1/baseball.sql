@@ -7,6 +7,12 @@ SELECT COUNT(*) AS num_unknown_birthdates
 FROM Master
 WHERE (birthDay IS NULL) OR (birthMonth IS NULL) OR (birthYear IS NULL)
 OR (birthDay='') OR (birthMonth='') OR (birthYear='');
+    -- Query Returns:
+    -- +------------------------+
+    -- | num_unknown_birthdates |
+    -- +------------------------+
+    -- |                    449 |
+    -- +------------------------+
 
 -- (b) Are more players in the Hall of Fame dead or alive? (Output the number alive minus the number dead)
 SELECT SUM(m.alive) - SUM(m.dead) AS alive_minus_dead
@@ -23,38 +29,77 @@ INNER JOIN
     AS h
 USING (playerID)
 LIMIT 10;
+    -- Query Returns:
+    -- +------------------+
+    -- | alive_minus_dead |
+    -- +------------------+
+    -- |             -169 |
+    -- +------------------+
 
 -- (c) What is the name and total pay of the player with the largest total salary?
 -- Question in my opinion is ambiguous. salary is annualized but it is asking for the largest total salary, implying a sum of salaries
 -- In addition total pay is not well defined but can be interpreted as the sum of all salaries for all years a player has played
 
--- SELECT m.nameGiven, s.total_pay
--- FROM Master AS m 
--- INNER JOIN
---     (SELECT playerID, SUM(salary) AS total_pay
---     FROM Salaries
---     GROUP BY salary
---     ORDER BY SUM(salary) DESC
---     LIMIT 1) AS s;
--- ON m.playerID=s.playerID;
-
-
-SELECT m.nameGiven, s.salary
+-- I have assumed "largest total solary" is largest salary
+-- I have assumed "largest total pay" is the sum of all salaries the player has earned.
+SELECT m.nameGiven, s.total_pay
 FROM 
-    (SELECT playerID, salary
-    FROM Salaries
-    WHERE salary= 
-        (SELECT MAX(salary)
-         FROM Salaries)) 
+    (SELECT s1.playerID, SUM(s1.salary) AS total_pay
+    FROM Salaries AS s1
+    INNER JOIN
+        (SELECT DISTINCT playerID, salary
+        FROM Salaries
+        WHERE salary= 
+            (SELECT MAX(salary)
+            FROM Salaries)) 
+        AS s2
+    ON s1.playerID=s2.playerID
+    GROUP BY s1.playerID
+    ORDER BY SUM(s1.salary) DESC)
     AS s
 LEFT JOIN Master AS m 
 ON s.playerID=m.playerID
-ORDER BY s.salary DESC
-LIMIT 5;
+ORDER BY s.total_pay DESC
+LIMIT 1;
+
+    -- Query RETURNS
+    -- +--------------------+-----------+
+    -- | nameGiven          | total_pay |
+    -- +--------------------+-----------+
+    -- | Alexander Enmanuel | 398416252 |
+    -- +--------------------+-----------+
+
+
+-- This returns players with max salary only
+-- SELECT m.nameGiven, s.salary
+-- FROM 
+--     (SELECT playerID, salary
+--     FROM Salaries
+--     WHERE salary= 
+--         (SELECT MAX(salary)
+--          FROM Salaries)) 
+--     AS s
+-- LEFT JOIN Master AS m 
+-- ON s.playerID=m.playerID
+-- ORDER BY s.salary DESC;
+    -- This returns the players with the max salary. This may not be what was intended by "largest total salary"
+    -- +--------------------+----------+
+    -- | nameGiven          | salary   |
+    -- +--------------------+----------+
+    -- | Clayton Edward     | 33000000 |
+    -- | Alexander Enmanuel | 33000000 |
+    -- | Alexander Enmanuel | 33000000 |
+    -- +--------------------+----------+
 
 -- (d) What is the average number of Home Runs a player has?
 SELECT AVG(HR)
 FROM Batting;
+    -- Query Returns;
+    -- +---------+
+    -- | AVG(HR) |
+    -- +---------+
+    -- |  2.8136 |
+    -- +---------+
 
 -- (e) If we only count players who got at least 1 Home Run, what is the average number of Home Runs a player has?
 SELECT AVG(h.HR) AS avg_HR_gt0
@@ -62,6 +107,13 @@ FROM
     (SELECT HR
     FROM Batting
     WHERE HR>0) AS h;
+    -- Query Returns:
+    -- +------------+
+    -- | avg_HR_gt0 |
+    -- +------------+
+    -- |     7.2428 |
+    -- +------------+
+
 
 -- (f) If we define a player as a good batter if they have more than the average number of Home
 -- Runs, and a player is a good Pitcher if they have more than the average number of ShutOut
@@ -80,6 +132,12 @@ INNER JOIN
     HAVING AVG(SHO) > (SELECT AVG(SHO) FROM Pitching)) 
     AS p
 USING (playerID);
+    -- Query Returns:
+    -- +-------------------+
+    -- | goodbat_goodpitch |
+    -- +-------------------+
+    -- |                 7 |
+    -- +-------------------+
 
 
 -- QUESTION 2 
@@ -113,10 +171,15 @@ USING (playerID);
 -- ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Credit Source: https://stackoverflow.com/questions/2675323/mysql-load-null-values-from-csv-data
+
+-- The replace option requires that a primary key is set. This is the same key used for (3)
+SET FOREIGN_KEY_CHECKS = 0;
+ALTER TABLE Fielding
+ADD PRIMARY KEY (playerID, yearID, stint, Pos);
 LOAD DATA
     LOCAL
     INFILE 'Fielding.csv' REPLACE
-    INTO TABLE Fielding2
+    INTO TABLE Fielding
     FIELDS TERMINATED BY ','
     LINES TERMINATED BY '\n'
     IGNORE 1 ROWS
@@ -129,6 +192,7 @@ LOAD DATA
         A       = if(@vA='', 0, @vA),
         E       = if(@vE='', 0, @vE),
         DP      = if(@vDP='', 0, @vDP);
+SET FOREIGN_KEY_CHECKS = 1;
 
 
 -- QUESTION 3. The SQL file is missing both primary and foreign keys (which is just as well since some of the
@@ -202,10 +266,6 @@ ADD PRIMARY KEY (playerID, yearID, stint);
 
 ALTER TABLE Pitching
 ADD PRIMARY KEY (playerID, yearID, stint);
-
---FIX!
--- ERROR 1062 (23000): Duplicate entry 'aaronha01-1975-1-OF' for key 'PRIMARY'
-SELECT playerID, yearID, stint, Pos, COUNT(*) AS cnt  FROM Fielding GROUP BY playerID, yearID, stint, Pos ORDER BY cnt DESC LIMIT 10;
 
 ALTER TABLE Fielding
 ADD PRIMARY KEY (playerID, yearID, stint, Pos);
@@ -586,3 +646,40 @@ ADD FOREIGN KEY (schoolID) REFERENCES Schools(schoolID);
 
 ALTER TABLE HomeGames
 ADD FOREIGN KEY (`park.key`) REFERENCES Parks(`park.key`);
+
+
+
+
+-- SELECT concat('DROP TABLE IF EXISTS `', table_name, '`;')
+-- FROM information_schema.tables
+-- WHERE table_schema = 'db356_akulas';
+
+-- SET FOREIGN_KEY_CHECKS = 0;
+-- DROP TABLE IF EXISTS `AllstarFull`;                
+-- DROP TABLE IF EXISTS `Appearances`;                
+-- DROP TABLE IF EXISTS `AwardsManagers`;             
+-- DROP TABLE IF EXISTS `AwardsPlayers`;              
+-- DROP TABLE IF EXISTS `AwardsShareManagers`;        
+-- DROP TABLE IF EXISTS `AwardsSharePlayers`;         
+-- DROP TABLE IF EXISTS `Batting`;                    
+-- DROP TABLE IF EXISTS `BattingPost`;                
+-- DROP TABLE IF EXISTS `CollegePlaying`;             
+-- DROP TABLE IF EXISTS `Fielding`;                   
+-- DROP TABLE IF EXISTS `FieldingOF`;                 
+-- DROP TABLE IF EXISTS `FieldingOFsplit`;            
+-- DROP TABLE IF EXISTS `FieldingPost`;               
+-- DROP TABLE IF EXISTS `HallOfFame`;                 
+-- DROP TABLE IF EXISTS `HomeGames`;                  
+-- DROP TABLE IF EXISTS `Managers`;                   
+-- DROP TABLE IF EXISTS `ManagersHalf`;               
+-- DROP TABLE IF EXISTS `Master`;                     
+-- DROP TABLE IF EXISTS `Parks`;                      
+-- DROP TABLE IF EXISTS `Pitching`;                   
+-- DROP TABLE IF EXISTS `PitchingPost`;               
+-- DROP TABLE IF EXISTS `Salaries`;                   
+-- DROP TABLE IF EXISTS `Schools`;                    
+-- DROP TABLE IF EXISTS `SeriesPost`;                 
+-- DROP TABLE IF EXISTS `Teams`;                      
+-- DROP TABLE IF EXISTS `TeamsFranchises`;            
+-- DROP TABLE IF EXISTS `TeamsHalf`;    
+-- SET FOREIGN_KEY_CHECKS = 1;            
