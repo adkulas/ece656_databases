@@ -58,7 +58,6 @@ FROM
 INNER JOIN user as u
 USING (user_id)
 WHERE (ABS(r.calc_avg_stars - u.average_stars) > 0.5);
-
     -- Query Result:
     -- +----------+
     -- | COUNT(*) |
@@ -66,19 +65,27 @@ WHERE (ABS(r.calc_avg_stars - u.average_stars) > 0.5);
     -- |       66 |
     -- +----------+
 
-
-SELECT u.user_ID
-FROM user AS u
-LEFT JOIN review AS r
-ON u.user_id=r.user_id
-WHERE(r.user_ID IS NULL);
-
-
-
 -- Question (e)
 -- What fraction of users have written more than 10 reviews?
 
-
+SELECT SUM(CASE WHEN review_count > 10 THEN 1 ELSE 0 END) / COUNT(*)
+FROM user;
+    -- Query Result:
+    -- +---------------------------------------------------------------+
+    -- | SUM(CASE WHEN review_count > 10 THEN 1 ELSE 0 END) / COUNT(*) |
+    -- +---------------------------------------------------------------+
+    -- |                                                        0.3311 |
+    -- +---------------------------------------------------------------+
 
 -- Question (f)
 -- What is the average length of their reviews?
+
+SELECT SUM(CHAR_LENGTH(text)) / COUNT(*) AS avg_char_len_per_review
+FROM review;
+    -- Query Result:
+    -- +-------------------------+
+    -- | avg_char_len_per_review |
+    -- +-------------------------+
+    -- |                675.9214 |
+    -- +-------------------------+
+
