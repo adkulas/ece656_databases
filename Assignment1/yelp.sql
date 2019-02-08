@@ -33,9 +33,9 @@ WHERE review_count = (SELECT MAX(review_count) FROM business);
 -- Question (c)
 -- What is the average number of reviews written by users?
 
-SELECT SUM(review_count) / COUNT(*)
+SELECT AVG(review_count)
 FROM user;
-
+    -- Query Result:    
     -- +------------------------------+
     -- | SUM(review_count) / COUNT(*) |
     -- +------------------------------+
@@ -80,7 +80,7 @@ FROM user;
 -- Question (f)
 -- What is the average length of their reviews?
 
-SELECT SUM(CHAR_LENGTH(text)) / COUNT(*) AS avg_char_len_per_review
+SELECT AVG(CHAR_LENGTH(text)) AS avg_char_len_per_review
 FROM review;
     -- Query Result:
     -- +-------------------------+
@@ -89,3 +89,15 @@ FROM review;
     -- |                675.9214 |
     -- +-------------------------+
 
+-- Question could be interpreted as the average length of reviews from the users in the subset above
+-- if this is the case the follow query would return the avg review length
+-- SELECT AVG(CHAR_LENGTH(r.text))
+-- FROM user AS u 
+-- INNER JOIN review as r 
+-- USING(user_ID)
+-- WHERE u.review_count > 10;
+    -- +--------------------------+
+    -- | AVG(CHAR_LENGTH(r.text)) |
+    -- +--------------------------+
+    -- |                 698.7808 |
+    -- +--------------------------+
