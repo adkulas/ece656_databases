@@ -149,6 +149,17 @@ ADD PRIMARY KEY (deptID);
 ALTER TABLE Instructor
 ADD FOREIGN KEY (deptID) REFERENCES Department(deptID);
 
+ALTER TABLE Course
+ADD FOREIGN KEY (deptID) REFERENCES Department(deptID);
+
+ALTER TABLE Course
+ADD FOREIGN KEY (prereqID) REFERENCES Course(courseID);
+
+ALTER TABLE Offering
+ADD FOREIGN KEY (roomID) REFERENCES Classroom(roomID);
+
+ALTER TABLE Offering
+ADD FOREIGN KEY (instID) REFERENCES Instructor(instID);
 
 
 
