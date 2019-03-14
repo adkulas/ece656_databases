@@ -152,8 +152,14 @@ ADD FOREIGN KEY (deptID) REFERENCES Department(deptID);
 ALTER TABLE Course
 ADD FOREIGN KEY (deptID) REFERENCES Department(deptID);
 
-ALTER TABLE Course
-ADD FOREIGN KEY (prereqID) REFERENCES Course(courseID);
+
+
+-- This foreign key will create a hierarchy relationship for the table. This cannot be applied 
+-- because the table is incomplete. The prereq courses do not appear as courses themselves
+
+-- NOTE: will fail.
+-- ALTER TABLE Course
+-- ADD FOREIGN KEY (prereqID) REFERENCES Course(courseID);
 
 ALTER TABLE Offering
 ADD FOREIGN KEY (roomID) REFERENCES Classroom(roomID);
@@ -166,6 +172,27 @@ ADD FOREIGN KEY (instID) REFERENCES Instructor(instID);
 
 -- (c) What additional constraints, if any, should be added?
 
+-- We may want to place contraints on the Capacity size in the Classroom table. This could be done to 
+-- avoid any erroneous data entry when adding new classrooms.
+
+-- We can also add a contraint to the Offering table where enrollment must be less than or equal to the 
+-- Classroom(Capacity). Depending on the business logic this could cause problems if it is desirable to have
+-- enrollment higher than classroom capacity anticipating a fraction of the students will drop the course.
+
+-- Main Constraints to consider are:
+--  - UNIQUE
+--  - CHECK
+--  - DEFAULT
+
+-- The unique contraints are mainly dealt with by the primary key contraints.
+-- None of the fields warrant the use of a Default value contraint.
+-- The check constraints could be applied to the fields mentioned above
+-- As mentioned in this SO post https://stackoverflow.com/questions/7522026/how-do-i-add-a-check-constraint-to-a-table
+-- CHECK constraints are not supported in MYSQL so an alternative if desired would be to 
+-- create a view with check option.
+
+
+
 
 /*
 (d) Knowing that each department is part of a faculty (deptID → faculty), that courses can have more than
@@ -176,6 +203,18 @@ relations, identify them, including any changes or adjustments to primary keys a
 other constraints. Explain your reasoning.
 */
 
+
+PROBLEM 1: How to define multiple prerequisites for courses.
+Currently there is a course table with column prereqID. The issue is if we try to add additional prerequisites
+we will break the first normal form (1NF) because CourseID will no longer be unique and break the pimary key constraint
+
+A possible solution is to create a new table Prerequisite with the relation 
+Prerequisite (ID, courseID, prereqID)
+1. use ID as INTEGER
+2. use PrimaryKey(courseID,prereqID)
+
+and alter the table Courses to have the representation:
+Courses (courseID, courseName, deptID)
 
 
 

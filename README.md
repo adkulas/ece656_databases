@@ -9,3 +9,8 @@ Repository for ECE 656 Databases Assignments and Homework
 
 - 3NF
   - https://www.geeksforgeeks.org/database-normalization-normal-forms/
+
+- Candidate key
+  - https://en.wikipedia.org/wiki/Candidate_key
+  - has poly time algo in number of candidate keys and FD's
+
