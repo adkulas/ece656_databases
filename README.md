@@ -13,4 +13,7 @@ Repository for ECE 656 Databases Assignments and Homework
 - Candidate key
   - https://en.wikipedia.org/wiki/Candidate_key
   - has poly time algo in number of candidate keys and FD's
+  
+- explain and execution plan
+  - https://use-the-index-luke.com/sql/explain-plan/mysql/operations
 
