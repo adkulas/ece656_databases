@@ -1,7 +1,5 @@
--- CREATE DATABASE  IF NOT EXISTS `baseball2016` /*!40100 DEFAULT CHARACTER SET utf8 */;
--- USE `baseball2016`;
-
-CREATE DATABASE  IF NOT EXISTS `assignment2` /*!40100 DEFAULT CHARACTER SET utf8 */;
+DROP DATABASE IF EXISTS `assignment2`;
+CREATE DATABASE IF NOT EXISTS `assignment2` /*!40100 DEFAULT CHARACTER SET utf8 */;
 USE `assignment2`;
 
 
@@ -79,8 +77,8 @@ INSERT INTO Instructor(instID, instName, deptID, sessional) VALUES(5, 'Lenny', '
 --  Records of `Course`
 -- ----------------------------
 INSERT INTO Course(courseID, courseName, deptID, prereqID) VALUES('ECE365', 'Database Systems', 'ECE', 'ECE250');
-INSERT INTO Course(courseID, courseName, deptID, prereqID) VALUES('ECE358', 'Computer Networks', 'ECE', 'ECE250');
-INSERT INTO Course(courseID, courseName, deptID, prereqID) VALUES('ECE390', 'Engineering Design', 'ECE', 'ECE250');
+INSERT INTO Course(courseID, courseName, deptID, prereqID) VALUES('ECE358', 'Computer Networks', 'ECE', 'ECE222');
+INSERT INTO Course(courseID, courseName, deptID, prereqID) VALUES('ECE390', 'Engineering Design', 'ECE', 'ECE290');
 INSERT INTO Course(courseID, courseName, deptID, prereqID) VALUES('MATH117', 'Calculus 1', 'MATH', NULL);
 
 -- ----------------------------
@@ -204,18 +202,115 @@ other constraints. Explain your reasoning.
 */
 
 
-PROBLEM 1: How to define multiple prerequisites for courses.
-Currently there is a course table with column prereqID. The issue is if we try to add additional prerequisites
-we will break the first normal form (1NF) because CourseID will no longer be unique and break the pimary key constraint
+-- PROBLEM 1: How to define multiple prerequisites for courses.
+-- Currently there is a course table with column prereqID. The issue is if we try to add additional prerequisites
+-- we will break the first normal form (1NF) because CourseID will no longer be unique and break the primary key constraint
 
-A possible solution is to create a new table Prerequisite with the relation 
-Prerequisite (ID, courseID, prereqID)
-1. use ID as INTEGER
-2. use PrimaryKey(courseID,prereqID)
+-- A possible solution is to create a new table Prerequisite with the relation 
+-- Prerequisite (courseID, prereqID)
 
-and alter the table Courses to have the representation:
-Courses (courseID, courseName, deptID)
+-- and alter the table Courses to have the representation:
+-- Courses (courseID, courseName, deptID)
 
+-- ORIGINAL Course TABLE
+-- +----------+--------------------+--------+----------+
+-- | courseID | courseName         | deptID | prereqID |
+-- +----------+--------------------+--------+----------+
+-- | ECE358   | Computer Networks  | ECE    | ECE250   |
+-- | ECE365   | Database Systems   | ECE    | ECE222   |
+-- | ECE390   | Engineering Design | ECE    | ECE290   |
+-- | MATH117  | Calculus 1         | MATH   | NULL     |
+-- +----------+--------------------+--------+----------+
+
+
+SET FOREIGN_KEY_CHECKS = 0;
+-- ----------------------------
+--  Table structure for `Prerequisite`
+-- ----------------------------
+SELECT "Creating prerequisite Table...";
+DROP TABLE IF EXISTS `Prerequisite`;
+CREATE TABLE `Prerequisite` (
+  `ID` int(11) NOT NULL AUTO_INCREMENT, 
+  `courseID` char(8) DEFAULT NULL,
+  `prereqID` char(8) DEFAULT NULL,
+  PRIMARY KEY(ID)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+
+SELECT "Inserting values into Prerequisite...";
+INSERT INTO Prerequisite (courseID, prereqID)
+  SELECT courseID, prereqID FROM Course;
+
+SELECT "Alter original Course table...";
+ALTER TABLE Course DROP COLUMN PrereqID;
+
+
+SELECT "Add Foreign Keys and Constraints";
+ALTER TABLE Prerequisite
+ADD FOREIGN KEY (courseID) REFERENCES Course(CourseID),
+ADD UNIQUE (courseID, prereqID);
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+
+-- Course and Prerequisite tables after alterations
+-- +----------+--------------------+--------+
+-- | courseID | courseName         | deptID |
+-- +----------+--------------------+--------+
+-- | ECE358   | Computer Networks  | ECE    |
+-- | ECE365   | Database Systems   | ECE    |
+-- | ECE390   | Engineering Design | ECE    |
+-- | MATH117  | Calculus 1         | MATH   |
+-- +----------+--------------------+--------+
+-- +------------+-------------+------+-----+---------+-------+
+-- | Field      | Type        | Null | Key | Default | Extra |
+-- +------------+-------------+------+-----+---------+-------+
+-- | courseID   | char(8)     | NO   | PRI | NULL    |       |
+-- | courseName | varchar(50) | YES  |     | NULL    |       |
+-- | deptID     | char(4)     | YES  | MUL | NULL    |       |
+-- +------------+-------------+------+-----+---------+-------+
+-- +----+----------+----------+
+-- | ID | courseID | prereqID |
+-- +----+----------+----------+
+-- |  1 | ECE358   | ECE222   |
+-- |  2 | ECE365   | ECE250   |
+-- |  3 | ECE390   | ECE290   |
+-- |  4 | MATH117  | NULL     |
+-- +----+----------+----------+
+-- +----------+---------+------+-----+---------+----------------+
+-- | Field    | Type    | Null | Key | Default | Extra          |
+-- +----------+---------+------+-----+---------+----------------+
+-- | ID       | int(11) | NO   | PRI | NULL    | auto_increment |
+-- | courseID | char(8) | YES  | MUL | NULL    |                |
+-- | prereqID | char(8) | YES  |     | NULL    |                |
+-- +----------+---------+------+-----+---------+----------------+
+
+
+-- PROBLEM 2: How to allow queries based on term
+-- We should not simply add the term as a column to offering because the
+-- information is contained within the term code and would result in redundancy
+-- To solve this problem we can add a new table that provides information
+-- on the term itself. This new tables could have the relation
+-- Term (termCode, year, term)
+
+-- ----------------------------
+--  Table structure for `Term`
+-- ----------------------------
+SELECT "Creating Term Table...";
+DROP TABLE IF EXISTS `Term`;
+CREATE TABLE `Term` (
+  `termCode` decimal(4,0) NOT NULL,
+  `year` decimal(4,0) DEFAULT NULL,
+  `term` char(8) DEFAULT NULL,
+  PRIMARY KEY(termCode)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+SELECT "Add values into new Term Table...";
+INSERT INTO Term (termCode, year, term) VALUES (1191, 2019, 'Winter');
+INSERT INTO Term (termCode, year, term) VALUES (1189, 2018, 'Fall');
+
+ALTER TABLE Offering
+ADD FOREIGN KEY (termCode) REFERENCES Term (termCode);
 
 
 
@@ -232,6 +327,49 @@ Courses (courseID, courseName, deptID)
 Using “explain” and/or your own reasoning, identify what indexes would be potentially useful to help in
 these queries.
 */
+
+-- Which instructors are sessionals?
+SELECT * FROM Instructor WHERE sessional=true;
+-- +--------+----------+--------+-----------+
+-- | instID | instName | deptID | sessional |
+-- +--------+----------+--------+-----------+
+-- |      4 | Moe      | CS     |         1 |
+-- +--------+----------+--------+-----------+
+-- 1 row in set (0.12 sec)
+
+explain SELECT * FROM Instructor WHERE sessional=true;
+-- +----+-------------+------------+------------+------+---------------+------+---------+------+------+----------+-------------+
+-- | id | select_type | table      | partitions | type | possible_keys | key  | key_len | ref  | rows | filtered | Extra       |
+-- +----+-------------+------------+------------+------+---------------+------+---------+------+------+----------+-------------+
+-- |  1 | SIMPLE      | Instructor | NULL       | ALL  | NULL          | NULL | NULL    | NULL |    4 |    25.00 | Using where |
+-- +----+-------------+------------+------------+------+---------------+------+---------+------+------+----------+-------------+
+-- 1 row in set, 1 warning (0.11 sec)
+
+ALTER TABLE Instructor ADD INDEX (sessional);
+
+SELECT * FROM Instructor WHERE sessional=true;
+-- +--------+----------+--------+-----------+
+-- | instID | instName | deptID | sessional |
+-- +--------+----------+--------+-----------+
+-- |      4 | Moe      | CS     |         1 |
+-- +--------+----------+--------+-----------+
+1 row in set (0.10 sec)
+
+explain SELECT * FROM Instructor WHERE sessional=true;
+-- +----+-------------+------------+------------+------+---------------+-----------+---------+-------+------+----------+-------+
+-- | id | select_type | table      | partitions | type | possible_keys | key       | key_len | ref   | rows | filtered | Extra |
+-- +----+-------------+------------+------------+------+---------------+-----------+---------+-------+------+----------+-------+
+-- |  1 | SIMPLE      | Instructor | NULL       | ref  | sessional     | sessional | 2       | const |    1 |   100.00 | NULL  |
+-- +----+-------------+------------+------------+------+---------------+-----------+---------+-------+------+----------+-------+
+-- 1 row in set, 1 warning (0.00 sec)
+
+
+-- Which instructors have taught courses over a particular timeframe?
+-- How many courses are taught by sessionals?
+-- How many students are taught by sessionals?
+-- Any of the above, grouped by faculty
+-- Any of the above, as fractions of total instructors and/or courses, as relevant?
+
 
 
 
