@@ -5,6 +5,8 @@ USE `Yelp`;
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
+
+DROP TABLE IF EXISTS `business`;
 CREATE TABLE `business` (
   `business_id` char(22) NOT NULL,
   `name` varchar(100) NOT NULL,
@@ -19,15 +21,17 @@ CREATE TABLE `business` (
   `review_count` int(5) DEFAULT '0',
   `is_open` int(1) DEFAULT NULL,
   PRIMARY KEY (`business_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
+DROP TABLE IF EXISTS `business_categories`;
 CREATE TABLE `business_categories` (
   `category` varchar(100) DEFAULT NULL,
   `business_id` char(22) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
+DROP TABLE IF EXISTS `checkin`;
 CREATE TABLE `checkin` (
   `business_id` char(22) NOT NULL,
   `sunday_0_1_count` int(5) DEFAULT '0',
@@ -198,8 +202,10 @@ CREATE TABLE `checkin` (
   `saturday_21_22_count` int(5) DEFAULT '0',
   `saturday_22_23_count` int(5) DEFAULT '0',
   `saturday_23_0_count` int(5) DEFAULT '0'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 
+) ENGINE=InnoDB DEFAULT CHARSET=utf8; 
 
+
+DROP TABLE IF EXISTS `review`;
 CREATE TABLE `review` (
   `review_id` char(22) NOT NULL,
   `user_id` char(22) NOT NULL,
@@ -212,21 +218,27 @@ CREATE TABLE `review` (
   `cool` int(5) DEFAULT '0',
   PRIMARY KEY (`review_id`),
   KEY `idx_rtxt` (`text`(9))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+
+DROP TABLE IF EXISTS `user_friends`;
 CREATE TABLE `user_friends` (
   `user_id` char(22) NOT NULL,
   `friend_id` char(22) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 
+) ENGINE=InnoDB DEFAULT CHARSET=utf8; 
 
+
+DROP TABLE IF EXISTS `tip`;
 CREATE TABLE `tip` (
   `user_id` char(22) NOT NULL,
   `business_id` char(22) NOT NULL,
   `date` date DEFAULT NULL,
   `text` text,
   `likes` int(5) DEFAULT '0'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 
+) ENGINE=InnoDB DEFAULT CHARSET=utf8; 
 
+
+DROP TABLE IF EXISTS `user`;
 CREATE TABLE `user` (
   `user_id` char(22) NOT NULL,
   `name` varchar(60) NOT NULL,
@@ -249,6 +261,28 @@ CREATE TABLE `user` (
   `compliment_hot` int(5) DEFAULT '0',
   `compliment_photos` int(5) DEFAULT '0',
   PRIMARY KEY (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+SET FOREIGN_KEY_CHECKS = 1;
+
 
 SET FOREIGN_KEY_CHECKS = 0;
+LOAD DATA
+    LOCAL
+    INFILE 'tip.csv' REPLACE
+    INTO TABLE tip
+    FIELDS 
+      TERMINATED BY ';'
+      -- ENCLOSED BY '"'
+    LINES TERMINATED BY '\n'
+    IGNORE 1 ROWS
+        (business_id,likes,date,text,user_id);
+        -- SET
+        -- yearID  = if(@vyearID='', 0, @vyearID),
+        -- stint   = if(@vstint='', 0, @vstint),
+        -- G       = if(@vG='', 0, @vG),
+        -- PO      = if(@vPO='', 0, @vPO),
+        -- A       = if(@vA='', 0, @vA),
+        -- E       = if(@vE='', 0, @vE),
+        -- DP      = if(@vDP='', 0, @vDP);
+SET FOREIGN_KEY_CHECKS = 1;
