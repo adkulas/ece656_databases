@@ -363,9 +363,69 @@ explain SELECT * FROM Instructor WHERE sessional=true;
 -- +----+-------------+------------+------------+------+---------------+-----------+---------+-------+------+----------+-------+
 -- 1 row in set, 1 warning (0.00 sec)
 
+-- We can see that the query was improved greatly. The type has changed from ALL to ref meaning that the index is used 
+-- correctly and only part of the table needs to be searched for the return
+
 
 -- Which instructors have taught courses over a particular timeframe?
+EXPLAIN SELECT t1.instName, t2.termCode as termCode
+FROM Instructor as t1
+INNER JOIN Offering as t2
+on t1.instID=t2.instID
+WHERE termCode > 1190 AND termCode < 1192;
+
+-- +----+-------------+-------+------------+-------+-----------------+--------+---------+------+------+----------+----------------------------------------------------+
+-- | id | select_type | table | partitions | type  | possible_keys   | key    | key_len | ref  | rows | filtered | Extra                                              |
+-- +----+-------------+-------+------------+-------+-----------------+--------+---------+------+------+----------+----------------------------------------------------+
+-- |  1 | SIMPLE      | t2    | NULL       | index | instID,termCode | instID | 5       | NULL |    5 |    80.00 | Using where; Using index                           |
+-- |  1 | SIMPLE      | t1    | NULL       | ALL   | PRIMARY         | NULL   | NULL    | NULL |    4 |    25.00 | Using where; Using join buffer (Block Nested Loop) |
+-- +----+-------------+-------+------------+-------+-----------------+--------+---------+------+------+----------+----------------------------------------------------+
+
+-- From the type column we can see that the second row (table t1) has type ALL. This indicates that an index is not being used.
+-- We can improve the query by adding an index for table t1
+
+ALTER TABLE Instructor ADD INDEX (instName);
+
+-- +----+-------------+-------+------------+--------+----------------------------+---------+---------+-----------------------+------+----------+--------------------------+
+-- | id | select_type | table | partitions | type   | possible_keys              | key     | key_len | ref                   | rows | filtered | Extra                    |
+-- +----+-------------+-------+------------+--------+----------------------------+---------+---------+-----------------------+------+----------+--------------------------+
+-- |  1 | SIMPLE      | t2    | NULL       | index  | instID,termCode,termCode_2 | instID  | 5       | NULL                  |    5 |    80.00 | Using where; Using index |
+-- |  1 | SIMPLE      | t1    | NULL       | eq_ref | PRIMARY                    | PRIMARY | 4       | assignment2.t2.instID |    1 |   100.00 | NULL                     |
+-- +----+-------------+-------+------------+--------+----------------------------+---------+---------+-----------------------+------+----------+--------------------------+
+-- 2 rows in set, 1 warning (0.00 sec)
+
+-- The query is now improved as indicated by the type "eq_ref". This performs a BTREE traversal to find one row.
+-- The fact that t1 has type index may indicate teh query can be improved. index is similar to ALL but it is searching through all elements
+-- of the index. Since we have indicies on the join column (it is a foreign key) this may indicate that re-writing the query could improve performance.
+-- let's try a subquery first then joiing the resutls.
+
+EXPLAIN SELECT t1.instName, t2.termCode as termCode
+FROM Instructor as t1
+INNER JOIN 
+  (SELECT termCode, instID
+  FROM Offering
+  WHERE termCode > 1190 AND termCode < 1192) 
+  as t2
+on t1.instID=t2.instID;
+
+-- +----+-------------+----------+------------+--------+----------------------------+---------+---------+-----------------------------+------+----------+--------------------------+
+-- | id | select_type | table    | partitions | type   | possible_keys              | key     | key_len | ref                         | rows | filtered | Extra                    |
+-- +----+-------------+----------+------------+--------+----------------------------+---------+---------+-----------------------------+------+----------+--------------------------+
+-- |  1 | SIMPLE      | Offering | NULL       | index  | instID,termCode,termCode_2 | instID  | 5       | NULL                        |    5 |    80.00 | Using where; Using index |
+-- |  1 | SIMPLE      | t1       | NULL       | eq_ref | PRIMARY                    | PRIMARY | 4       | assignment2.Offering.instID |    1 |   100.00 | NULL                     |
+-- +----+-------------+----------+------------+--------+----------------------------+---------+---------+-----------------------------+------+----------+--------------------------+
+
+-- This did not change the execution plan of the query.
+
+
+
+
 -- How many courses are taught by sessionals?
+
+
+
+
+
 -- How many students are taught by sessionals?
 -- Any of the above, grouped by faculty
 -- Any of the above, as fractions of total instructors and/or courses, as relevant?
