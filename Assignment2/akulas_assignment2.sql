@@ -697,7 +697,447 @@ filter is a point query.
 -- solving those queries.
 
 
--- SELECT COUNT(*) AS num_unknown_birthdates
--- FROM Master
--- WHERE (birthDay IS NULL) OR (birthMonth IS NULL) OR (birthYear IS NULL)
--- OR (birthDay='') OR (birthMonth='') OR (birthYear='');
+/*
+1. QUERY FROM ASSIGNMENT 1
+______________________________________________________________
+*/
+EXPLAIN
+SELECT COUNT(*) AS num_unknown_birthdates
+FROM Master
+WHERE (birthDay IS NULL) OR (birthMonth IS NULL) OR (birthYear IS NULL)
+OR (birthDay='') OR (birthMonth='') OR (birthYear='');
+
+-- +----+-------------+--------+------+---------------+------+---------+------+-------+-------------+
+-- | id | select_type | table  | type | possible_keys | key  | key_len | ref  | rows  | Extra       |
+-- +----+-------------+--------+------+---------------+------+---------+------+-------+-------------+
+-- |  1 | SIMPLE      | Master | ALL  | NULL          | NULL | NULL    | NULL | 19037 | Using where |
+-- +----+-------------+--------+------+---------------+------+---------+------+-------+-------------+
+-- 1 row in set (0.02 sec)
+
+-- add index for birthDay birthMonth and birthYear
+ALTER TABLE Master Add INDEX (birthDay);
+ALTER TABLE Master Add INDEX (birthMonth);
+ALTER TABLE Master Add INDEX (birthYear);
+
+-- +----+-------------+--------+-------------+-------------------------------+-------------------------------+---------+------+------+--------------------------------------------------------------+
+-- | id | select_type | table  | type        | possible_keys                 | key                           | key_len | ref  | rows | Extra                                                        |
+-- +----+-------------+--------+-------------+-------------------------------+-------------------------------+---------+------+------+--------------------------------------------------------------+
+-- |  1 | SIMPLE      | Master | index_merge | birthDay,birthMonth,birthYear | birthDay,birthMonth,birthYear | 5,5,5   | NULL |  885 | Using sort_union(birthDay,birthMonth,birthYear); Using where |
+-- +----+-------------+--------+-------------+-------------------------------+-------------------------------+---------+------+------+--------------------------------------------------------------+
+-- 1 row in set (0.02 sec)
+
+-- much less rows are scanned after adding indices on the predicate attributes
+
+
+ALTER TABLE Master DROP INDEX birthDay;
+ALTER TABLE Master DROP INDEX birthMonth;
+ALTER TABLE Master DROP INDEX birthYear;
+
+
+/*
+2. QUERY FROM ASSIGNMENT 1
+______________________________________________________________
+*/
+EXPLAIN
+SELECT SUM(m.alive) - SUM(m.dead) AS alive_minus_dead
+FROM
+    (SELECT playerID,
+        CASE WHEN deathYear = '' THEN 1 ELSE 0 END AS alive,
+        CASE WHEN deathYear != '' THEN 1 ELSE 0 END AS dead
+    FROM Master)
+    AS m
+INNER JOIN 
+    (SELECT *
+    FROM HallOfFame 
+    WHERE inducted='Y')
+    AS h
+USING (playerID)
+LIMIT 10;
+
+-- +----+-------------+------------+------+---------------+-------------+---------+------------+-------+-------------+
+-- | id | select_type | table      | type | possible_keys | key         | key_len | ref        | rows  | Extra       |
+-- +----+-------------+------------+------+---------------+-------------+---------+------------+-------+-------------+
+-- |  1 | PRIMARY     | <derived3> | ALL  | NULL          | NULL        | NULL    | NULL       |  4156 | NULL        |
+-- |  1 | PRIMARY     | <derived2> | ref  | <auto_key0>   | <auto_key0> | 767     | h.playerID |    10 | NULL        |
+-- |  3 | DERIVED     | HallOfFame | ALL  | NULL          | NULL        | NULL    | NULL       |  4156 | Using where |
+-- |  2 | DERIVED     | Master     | ALL  | NULL          | NULL        | NULL    | NULL       | 19037 | NULL        |
+-- +----+-------------+------------+------+---------------+-------------+---------+------------+-------+-------------+
+-- 4 rows in set (0.02 sec)
+
+
+-- the ALL types are an issue best all rows are scanned inthe table. Try adding indicies for
+-- Deathyear, and inducted
+
+ALTER TABLE Master Add INDEX (deathYear);
+ALTER TABLE HallOfFame Add INDEX (inducted);
+
+-- +----+-------------+------------+-------+---------------+-------------+---------+------------+-------+-----------------------+
+-- | id | select_type | table      | type  | possible_keys | key         | key_len | ref        | rows  | Extra                 |
+-- +----+-------------+------------+-------+---------------+-------------+---------+------------+-------+-----------------------+
+-- |  1 | PRIMARY     | <derived3> | ALL   | NULL          | NULL        | NULL    | NULL       |   317 | NULL                  |
+-- |  1 | PRIMARY     | <derived2> | ref   | <auto_key0>   | <auto_key0> | 767     | h.playerID |    60 | NULL                  |
+-- |  3 | DERIVED     | HallOfFame | ref   | inducted      | inducted    | 768     | const      |   317 | Using index condition |
+-- |  2 | DERIVED     | Master     | index | NULL          | deathYear   | 768     | NULL       | 19037 | Using index           |
+-- +----+-------------+------------+-------+---------------+-------------+---------+------------+-------+-----------------------+
+-- 4 rows in set (0.02 sec)
+
+-- performance is better on the HallOfFame table however the entire master table is still scanned.
+-- here are the indexes on Master:
+show index FROM Master;
+-- +--------+------------+-----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+-- | Table  | Non_unique | Key_name  | Seq_in_index | Column_name | Collation | Cardinality | Sub_part | Packed | Null | Index_type | Comment | Index_comment |
+-- +--------+------------+-----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+-- | Master |          0 | PRIMARY   |            1 | playerID    | A         |       19037 |     NULL | NULL   |      | BTREE      |         |               |
+-- | Master |          1 | deathYear |            1 | deathYear   | A         |         297 |     NULL | NULL   | YES  | BTREE      |         |               |
+-- +--------+------------+-----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+
+-- this index could possibly be improved by using a hash instead however the mommerset server is MYSQL 5.6 and does
+-- not support HASH type
+
+ALTER TABLE Master DROP INDEX deathYear;
+ALTER TABLE HallOfFame DROP INDEX inducted;
+
+
+
+/*
+3. QUERY FROM ASSIGNMENT 1
+______________________________________________________________
+*/
+
+EXPLAIN
+SELECT m.nameGiven, s.total_pay
+FROM 
+    (SELECT s1.playerID, SUM(s1.salary) AS total_pay
+    FROM Salaries AS s1
+    INNER JOIN
+        (SELECT DISTINCT playerID, salary
+        FROM Salaries
+        WHERE salary= 
+            (SELECT MAX(salary)
+            FROM Salaries)) 
+        AS s2
+    ON s1.playerID=s2.playerID
+    GROUP BY s1.playerID
+    ORDER BY SUM(s1.salary) DESC)
+    AS s
+LEFT JOIN Master AS m 
+ON s.playerID=m.playerID
+ORDER BY s.total_pay DESC
+LIMIT 1;
+
+-- +----+-------------+------------+--------+---------------+---------+---------+-------------+-------+---------------------------------+
+-- | id | select_type | table      | type   | possible_keys | key     | key_len | ref         | rows  | Extra                           |
+-- +----+-------------+------------+--------+---------------+---------+---------+-------------+-------+---------------------------------+
+-- |  1 | PRIMARY     | <derived2> | ALL    | NULL          | NULL    | NULL    | NULL        | 53274 | Using filesort                  |
+-- |  1 | PRIMARY     | m          | eq_ref | PRIMARY       | PRIMARY | 767     | s.playerID  |     1 | NULL                            |
+-- |  2 | DERIVED     | <derived3> | ALL    | NULL          | NULL    | NULL    | NULL        | 26637 | Using temporary; Using filesort |
+-- |  2 | DERIVED     | s1         | ref    | PRIMARY       | PRIMARY | 767     | s2.playerID |     2 | NULL                            |
+-- |  3 | DERIVED     | Salaries   | ALL    | NULL          | NULL    | NULL    | NULL        | 26637 | Using where; Using temporary    |
+-- |  4 | SUBQUERY    | Salaries   | ALL    | NULL          | NULL    | NULL    | NULL        | 26637 | NULL                            |
+-- +----+-------------+------------+--------+---------------+---------+---------+-------------+-------+---------------------------------+
+-- 6 rows in set (0.02 sec)
+
+-- an index on salary could improve the query as many of the sub queries are searching for ranges of salary
+ALTER TABLE Salaries Add INDEX (salary);
+
+-- +----+-------------+------------+--------+----------------+---------+---------+-------------+------+-------------------------------------------+
+-- | id | select_type | table      | type   | possible_keys  | key     | key_len | ref         | rows | Extra                                     |
+-- +----+-------------+------------+--------+----------------+---------+---------+-------------+------+-------------------------------------------+
+-- |  1 | PRIMARY     | <derived2> | ALL    | NULL           | NULL    | NULL    | NULL        |    6 | Using filesort                            |
+-- |  1 | PRIMARY     | m          | eq_ref | PRIMARY        | PRIMARY | 767     | s.playerID  |    1 | NULL                                      |
+-- |  2 | DERIVED     | <derived3> | ALL    | NULL           | NULL    | NULL    | NULL        |    3 | Using temporary; Using filesort           |
+-- |  2 | DERIVED     | s1         | ref    | PRIMARY,salary | PRIMARY | 767     | s2.playerID |    2 | NULL                                      |
+-- |  3 | DERIVED     | Salaries   | ref    | salary         | salary  | 5       | const       |    3 | Using where; Using index; Using temporary |
+-- |  4 | SUBQUERY    | NULL       | NULL   | NULL           | NULL    | NULL    | NULL        | NULL | Select tables optimized away              |
+-- +----+-------------+------------+--------+----------------+---------+---------+-------------+------+-------------------------------------------+
+-- 6 rows in set (0.02 sec)
+
+-- This has greatly improved the query performance. Thousands of scans are avoided as seen by the rows column.
+
+
+-- Restore table to original
+ALTER TABLE Salaries DROP INDEX salary;
+
+
+
+/*
+4. QUERY FROM ASSIGNMENT 1
+______________________________________________________________
+*/
+
+EXPLAIN
+SELECT AVG(HR)
+FROM Batting;
+
+-- +----+-------------+---------+------+---------------+------+---------+------+--------+-------+
+-- | id | select_type | table   | type | possible_keys | key  | key_len | ref  | rows   | Extra |
+-- +----+-------------+---------+------+---------------+------+---------+------+--------+-------+
+-- |  1 | SIMPLE      | Batting | ALL  | NULL          | NULL | NULL    | NULL | 102281 | NULL  |
+-- +----+-------------+---------+------+---------------+------+---------+------+--------+-------+
+-- 1 row in set (0.01 sec)
+
+-- intuitively I don't think there is much that can be done with this query to speed up performance since the average requires all records
+-- we will try an index on HR just to verify
+
+ALTER TABLE Batting Add INDEX (HR);
+
+-- +----+-------------+---------+-------+---------------+------+---------+------+--------+-------------+
+-- | id | select_type | table   | type  | possible_keys | key  | key_len | ref  | rows   | Extra       |
+-- +----+-------------+---------+-------+---------------+------+---------+------+--------+-------------+
+-- |  1 | SIMPLE      | Batting | index | NULL          | HR   | 5       | NULL | 102281 | Using index |
+-- +----+-------------+---------+-------+---------------+------+---------+------+--------+-------------+
+-- 1 row in set (0.02 sec)
+
+-- The result is the same as expected
+
+
+-- restore table to original
+ALTER TABLE Batting DROP INDEX HR;
+
+
+/*
+5. QUERY FROM ASSIGNMENT 1
+______________________________________________________________
+*/
+
+EXPLAIN
+SELECT AVG(h.HR) AS avg_HR_gt0
+FROM
+    (SELECT HR
+    FROM Batting
+    WHERE HR>0) AS h;
+
+-- +----+-------------+------------+------+---------------+------+---------+------+--------+-------------+
+-- | id | select_type | table      | type | possible_keys | key  | key_len | ref  | rows   | Extra       |
+-- +----+-------------+------------+------+---------------+------+---------+------+--------+-------------+
+-- |  1 | PRIMARY     | <derived2> | ALL  | NULL          | NULL | NULL    | NULL | 102281 | NULL        |
+-- |  2 | DERIVED     | Batting    | ALL  | NULL          | NULL | NULL    | NULL | 102281 | Using where |
+-- +----+-------------+------------+------+---------------+------+---------+------+--------+-------------+
+-- 2 rows in set (0.03 sec)
+
+-- An index on HR now could be helpful to filter the results from the predicate
+
+ALTER TABLE Batting Add INDEX (HR);
+
+
+-- +----+-------------+------------+-------+---------------+------+---------+------+-------+--------------------------+
+-- | id | select_type | table      | type  | possible_keys | key  | key_len | ref  | rows  | Extra                    |
+-- +----+-------------+------------+-------+---------------+------+---------+------+-------+--------------------------+
+-- |  1 | PRIMARY     | <derived2> | ALL   | NULL          | NULL | NULL    | NULL | 51140 | NULL                     |
+-- |  2 | DERIVED     | Batting    | range | HR            | HR   | 5       | NULL | 51140 | Using where; Using index |
+-- +----+-------------+------------+-------+---------------+------+---------+------+-------+--------------------------+
+-- 2 rows in set (0.02 sec)
+
+-- we reduced teh rows scanned by about half. This is a decent result
+
+
+-- restore table
+ALTER TABLE Batting DROP INDEX HR;
+
+
+/*
+6. QUERY FROM ASSIGNMENT 1
+______________________________________________________________
+*/
+
+EXPLAIN
+SELECT COUNT(b.playerID) AS goodbat_goodpitch
+FROM
+    (SELECT playerID, AVG(HR)
+    FROM Batting
+    GROUP BY playerID
+    HAVING AVG(HR) > (SELECT AVG(HR) FROM Batting))
+    AS b
+INNER JOIN
+    (SELECT playerID, AVG(SHO)
+    FROM Pitching
+    GROUP BY playerID
+    HAVING AVG(SHO) > (SELECT AVG(SHO) FROM Pitching)) 
+    AS p
+USING (playerID);
+
+-- +----+-------------+------------+-------+---------------+-------------+---------+------------+--------+-------+
+-- | id | select_type | table      | type  | possible_keys | key         | key_len | ref        | rows   | Extra |
+-- +----+-------------+------------+-------+---------------+-------------+---------+------------+--------+-------+
+-- |  1 | PRIMARY     | <derived4> | ALL   | NULL          | NULL        | NULL    | NULL       |  44707 | NULL  |
+-- |  1 | PRIMARY     | <derived2> | ref   | <auto_key0>   | <auto_key0> | 767     | p.playerID |     10 | NULL  |
+-- |  4 | DERIVED     | Pitching   | index | PRIMARY       | PRIMARY     | 775     | NULL       |  44707 | NULL  |
+-- |  5 | SUBQUERY    | Pitching   | ALL   | NULL          | NULL        | NULL    | NULL       |  44707 | NULL  |
+-- |  2 | DERIVED     | Batting    | index | PRIMARY       | PRIMARY     | 775     | NULL       | 102281 | NULL  |
+-- |  3 | SUBQUERY    | Batting    | ALL   | NULL          | NULL        | NULL    | NULL       | 102281 | NULL  |
+-- +----+-------------+------------+-------+---------------+-------------+---------+------------+--------+-------+
+-- 6 rows in set (0.02 sec)
+
+-- playerID are primary keys and have indexes. We can try adding indexes for HR on Batting and SHO on Pitching
+
+
+ALTER TABLE Batting Add INDEX (HR);
+ALTER TABLE Pitching Add INDEX (SHO);
+
+
+-- +----+-------------+------------+-------+---------------+-------------+---------+------------+--------+-------------+
+-- | id | select_type | table      | type  | possible_keys | key         | key_len | ref        | rows   | Extra       |
+-- +----+-------------+------------+-------+---------------+-------------+---------+------------+--------+-------------+
+-- |  1 | PRIMARY     | <derived4> | ALL   | NULL          | NULL        | NULL    | NULL       |  44707 | NULL        |
+-- |  1 | PRIMARY     | <derived2> | ref   | <auto_key0>   | <auto_key0> | 767     | p.playerID |     10 | NULL        |
+-- |  4 | DERIVED     | Pitching   | index | PRIMARY,SHO   | PRIMARY     | 775     | NULL       |  44707 | NULL        |
+-- |  5 | SUBQUERY    | Pitching   | index | NULL          | SHO         | 5       | NULL       |  44707 | Using index |
+-- |  2 | DERIVED     | Batting    | index | PRIMARY,HR    | PRIMARY     | 775     | NULL       | 102281 | NULL        |
+-- |  3 | SUBQUERY    | Batting    | index | NULL          | HR          | 5       | NULL       | 102281 | Using index |
+-- +----+-------------+------------+-------+---------------+-------------+---------+------------+--------+-------------+
+-- 6 rows in set (0.02 sec)
+
+-- This does not seem to improve the query.
+
+ALTER TABLE Batting DROP INDEX HR;
+ALTER TABLE Pitching DROP INDEX SHO;
+
+
+
+
+
+
+
+-- QUESTION 3
+-- Likewise, you had to compute several queries on the Yelp database. Again, using explain on the queries
+-- you created for Lab 1, determine what indexes would help in solving those queries.
+
+
+-- The yelp database cannot be altered on mommerset so the indicies recommended cannot be tested like in question 2.
+
+/*
+1. QUERY FROM ASSIGNMENT 1
+______________________________________________________________
+*/
+
+EXPLAIN
+SELECT name, review_count
+FROM user
+WHERE review_count = (SELECT MAX(review_count) FROM user);
+
+-- +----+-------------+-------+------+---------------+------+---------+------+---------+-------------+
+-- | id | select_type | table | type | possible_keys | key  | key_len | ref  | rows    | Extra       |
+-- +----+-------------+-------+------+---------------+------+---------+------+---------+-------------+
+-- |  1 | PRIMARY     | user  | ALL  | NULL          | NULL | NULL    | NULL | 1021667 | Using where |
+-- |  2 | SUBQUERY    | user  | ALL  | NULL          | NULL | NULL    | NULL | 1021667 | NULL        |
+-- +----+-------------+-------+------+---------------+------+---------+------+---------+-------------+
+-- 2 rows in set (0.03 sec)
+
+-- This query would definitely benefir from an index on review_count in the user table
+-- if would allow the max value to be found in log(n) time then select the record corresponding to the value
+
+
+/*
+2. QUERY FROM ASSIGNMENT 1
+______________________________________________________________
+*/
+
+EXPLAIN
+SELECT name, review_count
+FROM business
+WHERE review_count = (SELECT MAX(review_count) FROM business);
+
+-- +----+-------------+----------+------+---------------+------+---------+------+--------+-------------+
+-- | id | select_type | table    | type | possible_keys | key  | key_len | ref  | rows   | Extra       |
+-- +----+-------------+----------+------+---------------+------+---------+------+--------+-------------+
+-- |  1 | PRIMARY     | business | ALL  | NULL          | NULL | NULL    | NULL | 142527 | Using where |
+-- |  2 | SUBQUERY    | business | ALL  | NULL          | NULL | NULL    | NULL | 142527 | NULL        |
+-- +----+-------------+----------+------+---------------+------+---------+------+--------+-------------+
+-- 2 rows in set (0.02 sec)
+
+-- very similar to above. adding index on business.review_count would improve the query performance
+
+
+
+/*
+3. QUERY FROM ASSIGNMENT 1
+______________________________________________________________
+*/
+
+EXPLAIN
+SELECT AVG(review_count)
+FROM user;
+
+-- +----+-------------+-------+------+---------------+------+---------+------+---------+-------+
+-- | id | select_type | table | type | possible_keys | key  | key_len | ref  | rows    | Extra |
+-- +----+-------------+-------+------+---------------+------+---------+------+---------+-------+
+-- |  1 | SIMPLE      | user  | ALL  | NULL          | NULL | NULL    | NULL | 1021667 | NULL  |
+-- +----+-------------+-------+------+---------------+------+---------+------+---------+-------+
+-- 1 row in set (0.01 sec)
+
+-- similar to an example in the batting table, an index on review_count when computing the average of the whole table
+-- won't help performance since all records need to be accessed regardless.
+
+
+/*
+4. QUERY FROM ASSIGNMENT 1
+______________________________________________________________
+*/
+
+EXPLAIN
+SELECT COUNT(*)
+FROM
+    (SELECT user_id, AVG(stars) AS calc_avg_stars
+    FROM review
+    GROUP BY user_id)
+    AS r
+INNER JOIN user as u
+USING (user_id)
+WHERE (ABS(r.calc_avg_stars - u.average_stars) > 0.5);
+
+
+-- +----+-------------+------------+--------+---------------+---------+---------+-----------+---------+---------------------------------+
+-- | id | select_type | table      | type   | possible_keys | key     | key_len | ref       | rows    | Extra                           |
+-- +----+-------------+------------+--------+---------------+---------+---------+-----------+---------+---------------------------------+
+-- |  1 | PRIMARY     | <derived2> | ALL    | NULL          | NULL    | NULL    | NULL      | 1655155 | NULL                            |
+-- |  1 | PRIMARY     | u          | eq_ref | PRIMARY       | PRIMARY | 22      | r.user_id |       1 | Using where                     |
+-- |  2 | DERIVED     | review     | ALL    | NULL          | NULL    | NULL    | NULL      | 1655155 | Using temporary; Using filesort |
+-- +----+-------------+------------+--------+---------------+---------+---------+-----------+---------+---------------------------------+
+-- 3 rows in set (0.02 sec)
+
+-- as long as user_id has a primary key constraint this query should perform well. each user will need to be aggregated to find average stars
+-- then the result is self joined back to the original table using the primary key field. a linear search would then need to be executed to 
+-- evaluate the predicate condition. 
+-- We can theorize how the database would optmize the execution plan and perhaps it would be able to alter the order of the operations
+-- however, I think this is unlikely because the predicate is based on the computed values from the subquery.
+
+
+
+/*
+4. QUERY FROM ASSIGNMENT 1
+______________________________________________________________
+*/
+
+EXPLAIN
+SELECT SUM(CASE WHEN review_count > 10 THEN 1 ELSE 0 END) / COUNT(*)
+FROM user;
+
+-- +----+-------------+-------+------+---------------+------+---------+------+---------+-------+
+-- | id | select_type | table | type | possible_keys | key  | key_len | ref  | rows    | Extra |
+-- +----+-------------+-------+------+---------------+------+---------+------+---------+-------+
+-- |  1 | SIMPLE      | user  | ALL  | NULL          | NULL | NULL    | NULL | 1021667 | NULL  |
+-- +----+-------------+-------+------+---------------+------+---------+------+---------+-------+
+-- 1 row in set (0.02 sec)
+
+-- an index on user.review_count could improve the search speed for records with a value greater than 10.
+
+
+/*
+6. QUERY FROM ASSIGNMENT 1
+______________________________________________________________
+*/
+
+EXPLAIN
+SELECT AVG(CHAR_LENGTH(text)) AS avg_char_len_per_review
+FROM review;
+
+-- +----+-------------+--------+------+---------------+------+---------+------+---------+-------+
+-- | id | select_type | table  | type | possible_keys | key  | key_len | ref  | rows    | Extra |
+-- +----+-------------+--------+------+---------------+------+---------+------+---------+-------+
+-- |  1 | SIMPLE      | review | ALL  | NULL          | NULL | NULL    | NULL | 1655155 | NULL  |
+-- +----+-------------+--------+------+---------------+------+---------+------+---------+-------+
+-- 1 row in set (0.03 sec)
+
+
+-- because this is aggergating a computer metric over all rows I don't think an index can help here. The entire table
+-- must be scanned regardless.
