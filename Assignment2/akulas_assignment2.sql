@@ -328,6 +328,7 @@ Using “explain” and/or your own reasoning, identify what indexes would be po
 these queries.
 */
 
+
 -- Which instructors are sessionals?
 SELECT * FROM Instructor WHERE sessional=true;
 -- +--------+----------+--------+-----------+
@@ -422,15 +423,172 @@ on t1.instID=t2.instID;
 
 -- How many courses are taught by sessionals?
 
+-- Remove previous indexes
+ALTER TABLE Instructor DROP INDEX sessional;
+ALTER TABLE Instructor DROP INDEX instName;
 
+EXPLAIN SELECT count(*) 
+FROM
+  (SELECT * FROM Instructor
+  WHERE sessional=1) 
+  as t1
+INNER JOIN Offering as t2
+ON t2.instID=t1.instID;
 
+-- +----+-------------+------------+------------+------+---------------+--------+---------+-------------------------------+------+----------+-------------+
+-- | id | select_type | table      | partitions | type | possible_keys | key    | key_len | ref                           | rows | filtered | Extra       |
+-- +----+-------------+------------+------------+------+---------------+--------+---------+-------------------------------+------+----------+-------------+
+-- |  1 | SIMPLE      | Instructor | NULL       | ALL  | PRIMARY       | NULL   | NULL    | NULL                          |    4 |    25.00 | Using where |
+-- |  1 | SIMPLE      | t2         | NULL       | ref  | instID        | instID | 5       | assignment2.Instructor.instID |    1 |   100.00 | Using index |
+-- +----+-------------+------------+------------+------+---------------+--------+---------+-------------------------------+------+----------+-------------+
+-- 2 rows in set, 1 warning (0.00 sec)
+
+-- This query can be improved by having an index on the Instructor table. We can try adding the index on sessional as before.
+
+ALTER TABLE Instructor Add INDEX (sessional);
+
+-- +----+-------------+------------+------------+------+-------------------+-----------+---------+-------------------------------+------+----------+-------------+
+-- | id | select_type | table      | partitions | type | possible_keys     | key       | key_len | ref                           | rows | filtered | Extra       |
+-- +----+-------------+------------+------------+------+-------------------+-----------+---------+-------------------------------+------+----------+-------------+
+-- |  1 | SIMPLE      | Instructor | NULL       | ref  | PRIMARY,sessional | sessional | 2       | const                         |    1 |   100.00 | Using index |
+-- |  1 | SIMPLE      | t2         | NULL       | ref  | instID            | instID    | 5       | assignment2.Instructor.instID |    1 |   100.00 | Using index |
+-- +----+-------------+------------+------------+------+-------------------+-----------+---------+-------------------------------+------+----------+-------------+
+-- 2 rows in set, 1 warning (0.00 sec)
+
+-- The query is now using the index.
 
 
 -- How many students are taught by sessionals?
+
+ALTER TABLE Instructor DROP INDEX sessional;
+
+EXPLAIN SELECT sum(enrollment) 
+FROM
+  (SELECT * FROM Instructor
+  WHERE sessional=1) 
+  as t1
+INNER JOIN Offering as t2
+ON t2.instID=t1.instID;
+
+-- +----+-------------+------------+------------+------+---------------+--------+---------+-------------------------------+------+----------+-------------+
+-- | id | select_type | table      | partitions | type | possible_keys | key    | key_len | ref                           | rows | filtered | Extra       |
+-- +----+-------------+------------+------------+------+---------------+--------+---------+-------------------------------+------+----------+-------------+
+-- |  1 | SIMPLE      | Instructor | NULL       | ALL  | PRIMARY       | NULL   | NULL    | NULL                          |    4 |    25.00 | Using where |
+-- |  1 | SIMPLE      | t2         | NULL       | ref  | instID        | instID | 5       | assignment2.Instructor.instID |    1 |   100.00 | NULL        |
+-- +----+-------------+------------+------------+------+---------------+--------+---------+-------------------------------+------+----------+-------------+
+-- 2 rows in set, 1 warning (0.00 sec)
+
+-- Again, this can be improved by the sessional index.
+
+ALTER TABLE Instructor Add INDEX (sessional);
+
+-- +----+-------------+------------+------------+------+-------------------+-----------+---------+-------------------------------+------+----------+-------------+
+-- | id | select_type | table      | partitions | type | possible_keys     | key       | key_len | ref                           | rows | filtered | Extra       |
+-- +----+-------------+------------+------------+------+-------------------+-----------+---------+-------------------------------+------+----------+-------------+
+-- |  1 | SIMPLE      | Instructor | NULL       | ref  | PRIMARY,sessional | sessional | 2       | const                         |    1 |   100.00 | Using index |
+-- |  1 | SIMPLE      | t2         | NULL       | ref  | instID            | instID    | 5       | assignment2.Instructor.instID |    1 |   100.00 | NULL        |
+-- +----+-------------+------------+------------+------+-------------------+-----------+---------+-------------------------------+------+----------+-------------+
+-- 2 rows in set, 1 warning (0.00 sec)
+
+
+
+
 -- Any of the above, grouped by faculty
+ALTER TABLE Instructor DROP INDEX sessional;
+
+-- We will do courses taught grouped by faculty where sessional.
+EXPLAIN SELECT d.faculty, COUNT(*)
+FROM
+Department AS d
+INNER JOIN
+  (SELECT t1.*
+  FROM Instructor AS t1
+  INNER JOIN
+  Offering AS t2
+  ON t1.instID=t2.instID
+  WHERE t1.sessional=1)
+AS tmp
+ON d.deptID=tmp.deptID
+GROUP BY d.faculty;
+
+-- +----+-------------+-------+------------+--------+----------------+---------+---------+-----------------------+------+----------+----------------------------------------------+
+-- | id | select_type | table | partitions | type   | possible_keys  | key     | key_len | ref                   | rows | filtered | Extra                                        |
+-- +----+-------------+-------+------------+--------+----------------+---------+---------+-----------------------+------+----------+----------------------------------------------+
+-- |  1 | SIMPLE      | t1    | NULL       | ALL    | PRIMARY,deptID | NULL    | NULL    | NULL                  |    4 |    25.00 | Using where; Using temporary; Using filesort |
+-- |  1 | SIMPLE      | d     | NULL       | eq_ref | PRIMARY        | PRIMARY | 24      | func                  |    1 |   100.00 | Using where                                  |
+-- |  1 | SIMPLE      | t2    | NULL       | ref    | instID         | instID  | 5       | assignment2.t1.instID |    1 |   100.00 | Using index                                  |
+-- +----+-------------+-------+------------+--------+----------------+---------+---------+-----------------------+------+----------+----------------------------------------------+
+-- 3 rows in set, 1 warning (0.00 sec)
+
+ALTER TABLE Instructor Add INDEX (sessional);
+
+-- +----+-------------+-------+------------+--------+--------------------------+-----------+---------+-----------------------+------+----------+----------------------------------------------+
+-- | id | select_type | table | partitions | type   | possible_keys            | key       | key_len | ref                   | rows | filtered | Extra                                        |
+-- +----+-------------+-------+------------+--------+--------------------------+-----------+---------+-----------------------+------+----------+----------------------------------------------+
+-- |  1 | SIMPLE      | t1    | NULL       | ref    | PRIMARY,deptID,sessional | sessional | 2       | const                 |    1 |   100.00 | Using where; Using temporary; Using filesort |
+-- |  1 | SIMPLE      | d     | NULL       | eq_ref | PRIMARY                  | PRIMARY   | 24      | func                  |    1 |   100.00 | Using where                                  |
+-- |  1 | SIMPLE      | t2    | NULL       | ref    | instID                   | instID    | 5       | assignment2.t1.instID |    1 |   100.00 | Using index                                  |
+-- +----+-------------+-------+------------+--------+--------------------------+-----------+---------+-----------------------+------+----------+----------------------------------------------+
+-- 3 rows in set, 1 warning (0.00 sec)
+
+-- Again the sessional column seems to be the best way to optimized the query using indexes. The fact that primary and foreign key relationships
+-- exist definately contribute to the optimization of the query.
+
+
+
 -- Any of the above, as fractions of total instructors and/or courses, as relevant?
 
+-- Courses taught by sessionals as a fraction
 
+ALTER TABLE Instructor DROP INDEX sessional;
+
+EXPLAIN SELECT count_sessional/total_courses FROM
+  (SELECT count(*) AS count_sessional
+  FROM
+    (SELECT * FROM Instructor
+    WHERE sessional=0) 
+    as t1
+  INNER JOIN 
+    Offering as t2
+  ON t2.instID=t1.instID) 
+  AS num
+CROSS JOIN
+  (SELECT count(*) AS total_courses
+  FROM Offering)
+  AS den;
+
+-- +----+-------------+------------+------------+--------+---------------+----------+---------+-------------------------------+------+----------+-------------+
+-- | id | select_type | table      | partitions | type   | possible_keys | key      | key_len | ref                           | rows | filtered | Extra       |
+-- +----+-------------+------------+------------+--------+---------------+----------+---------+-------------------------------+------+----------+-------------+
+-- |  1 | PRIMARY     | <derived2> | NULL       | system | NULL          | NULL     | NULL    | NULL                          |    1 |   100.00 | NULL        |
+-- |  1 | PRIMARY     | <derived4> | NULL       | system | NULL          | NULL     | NULL    | NULL                          |    1 |   100.00 | NULL        |
+-- |  4 | DERIVED     | Offering   | NULL       | index  | NULL          | termCode | 2       | NULL                          |    5 |   100.00 | Using index |
+-- |  2 | DERIVED     | Instructor | NULL       | ALL    | PRIMARY       | NULL     | NULL    | NULL                          |    4 |    25.00 | Using where |
+-- |  2 | DERIVED     | t2         | NULL       | ref    | instID        | instID   | 5       | assignment2.Instructor.instID |    1 |   100.00 | Using index |
+-- +----+-------------+------------+------------+--------+---------------+----------+---------+-------------------------------+------+----------+-------------+
+-- 5 rows in set, 1 warning (0.00 sec)
+
+-- The first thing that appears obvious is to again add the sessional index.
+
+ALTER TABLE Instructor Add INDEX (sessional);
+
+
+-- +----+-------------+------------+------------+--------+-------------------+-----------+---------+-------------------------------+------+----------+-------------+
+-- | id | select_type | table      | partitions | type   | possible_keys     | key       | key_len | ref                           | rows | filtered | Extra       |
+-- +----+-------------+------------+------------+--------+-------------------+-----------+---------+-------------------------------+------+----------+-------------+
+-- |  1 | PRIMARY     | <derived2> | NULL       | system | NULL              | NULL      | NULL    | NULL                          |    1 |   100.00 | NULL        |
+-- |  1 | PRIMARY     | <derived4> | NULL       | system | NULL              | NULL      | NULL    | NULL                          |    1 |   100.00 | NULL        |
+-- |  4 | DERIVED     | Offering   | NULL       | index  | NULL              | termCode  | 2       | NULL                          |    5 |   100.00 | Using index |
+-- |  2 | DERIVED     | Instructor | NULL       | ref    | PRIMARY,sessional | sessional | 2       | const                         |    3 |   100.00 | Using index |
+-- |  2 | DERIVED     | t2         | NULL       | ref    | instID            | instID    | 5       | assignment2.Instructor.instID |    1 |   100.00 | Using index |
+-- +----+-------------+------------+------------+--------+-------------------+-----------+---------+-------------------------------+------+----------+-------------+
+-- 5 rows in set, 1 warning (0.00 sec)
+
+-- This improves the query on the instructor table. The derived tables are the sub query tables used to find the conditional count
+-- and total count for the courses. It is unlikely that we can improve these much since the sub queries are counts of entries (improved
+-- by having a primary key) and counting conditional (improved by the sessional index)
+
+ALTER TABLE Instructor DROP INDEX sessional;
 
 
 /*
@@ -448,9 +606,98 @@ extension, and justify why the query might benefit from that index.
 */
 
 
+EXPLAIN select count(courseID) 
+from Course 
+inner join 
+Department 
+using (deptID) 
+where prereqID is NULL and faculty='Math';
+
+-- has no keys defined or indexes
+-- +----+-------------+------------+------------+------+---------------+------+---------+------+------+----------+----------------------------------------------------+
+-- | id | select_type | table      | partitions | type | possible_keys | key  | key_len | ref  | rows | filtered | Extra                                              |
+-- +----+-------------+------------+------------+------+---------------+------+---------+------+------+----------+----------------------------------------------------+
+-- |  1 | SIMPLE      | Course     | NULL       | ALL  | NULL          | NULL | NULL    | NULL |    4 |    25.00 | Using where                                        |
+-- |  1 | SIMPLE      | Department | NULL       | ALL  | NULL          | NULL | NULL    | NULL |    4 |    25.00 | Using where; Using join buffer (Block Nested Loop) |
+-- +----+-------------+------------+------------+------+---------------+------+---------+------+------+----------+----------------------------------------------------+
+-- 2 rows in set, 1 warning (0.00 sec)
+
+
+/*
+The execution plan would involve an inner join on the two tables followed by a filter on the predicates.
+The first step to evaluating the execution would be to write the query in relational algebra.
+
+the query can be written as 
+SUM[ σ_prereqID=NULL and faculty='Math'( ∏_deptID( Course |><|c.deptID=d.deptID Department ) ) ]
+
+Since there are no indexes and keys let's consider the inner join as executed using a nested loop
+Assuming the inner relations fit in memory the execution time for the join would be
+(b_c * b_d) * T_t + 2*T_s
+
+After the join is complete we need to loop over the returned elements and add
+the elements that are not filtered. There is no reason the algorithm can't be optimized 
+to execute this portion during the construction of the join. So the time should be the same as above
+
+If we assume there is only enough memory for one block of each relation. The cost becomes
+
+(r_c * b_d + b_c)* T_t + (r_c + b_c)* T_s
+
+each block in the inner relation is read once for each record in the outer relation
+
+*/
+
+
+-- Adding primary and foreign keys
+ALTER TABLE Course
+ADD PRIMARY KEY (courseID);
+
+ALTER TABLE Department
+ADD PRIMARY KEY (deptID);
+
+ALTER TABLE Course
+ADD FOREIGN KEY (deptID) REFERENCES Department(deptID);
+
+EXPLAIN select count(courseID) 
+from Course 
+inner join 
+Department 
+using (deptID) 
+where prereqID is NULL and faculty='Math';
+
+-- +----+-------------+------------+------------+--------+---------------+---------+---------+---------------------------+------+----------+-------------+
+-- | id | select_type | table      | partitions | type   | possible_keys | key     | key_len | ref                       | rows | filtered | Extra       |
+-- +----+-------------+------------+------------+--------+---------------+---------+---------+---------------------------+------+----------+-------------+
+-- |  1 | SIMPLE      | Course     | NULL       | ALL    | deptID        | NULL    | NULL    | NULL                      |    4 |    25.00 | Using where |
+-- |  1 | SIMPLE      | Department | NULL       | eq_ref | PRIMARY       | PRIMARY | 24      | assignment2.Course.deptID |    1 |    25.00 | Using where |
+-- +----+-------------+------------+------------+--------+---------------+---------+---------+---------------------------+------+----------+-------------+
+-- 2 rows in set, 1 warning (0.00 sec)
+
+
+
+-- (g)
+
+/* 
+The primary and foreign keys defined above can help improve the query performance. 
+We can also add index on the columns used as predicates, prereqID and faculty
+For faculty I would use a BTREE. This way
+when the 'Math' predicate is searched, it will order all values for faculty and search the tree.
+ The prereqID can be indexed using a BTREE as well for the same reason. 
+The best performance might occur if the resulting joined table can be indexed on both columns
+at once. I think Hash would provide similar if not better performance than BTREE because the 
+filter is a point query.
+*/
+
+
+
 
 -- QUESTION 2
 -- (2) In assigment 1 you had to compute several queries on the Sean Lahman baseball database. There
 -- were no explicit indexes on that database, though you should have added primary and foreign keys. Using
 -- explain on the queries you created for Lab 1, determine if any additional explicit indexes would help in
 -- solving those queries.
+
+
+-- SELECT COUNT(*) AS num_unknown_birthdates
+-- FROM Master
+-- WHERE (birthDay IS NULL) OR (birthMonth IS NULL) OR (birthYear IS NULL)
+-- OR (birthDay='') OR (birthMonth='') OR (birthYear='');
