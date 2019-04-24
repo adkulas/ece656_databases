@@ -275,7 +275,7 @@ ALTER TABLE course_offerings
 ADD FOREIGN KEY (course_uuid) REFERENCES courses(uuid);
 
 ALTER TABLE grade_distributions
-ADD FOREIGN KEY (course_offering_uuid) REFERENCES course_offerings(uuid),
+ADD FOREIGN KEY (course_offering_uuid) REFERENCES course_offerings(uuid);
 
 -- cant apply this FK relationship because sections have multiple section types
 -- ALTER TABLE grade_distributions
