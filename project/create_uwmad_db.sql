@@ -99,7 +99,7 @@ CREATE TABLE `sections` (
 
 DROP TABLE IF EXISTS `subject_memberships`;
 CREATE TABLE `subject_memberships` (
-  `subject_code` int(11) NOT NULL,
+  `subject_code` char(3) NOT NULL,
   `course_offering_uuid` varchar(100) NOT NULL,
   PRIMARY KEY(`subject_code`,`course_offering_uuid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -107,7 +107,7 @@ CREATE TABLE `subject_memberships` (
 
 DROP TABLE IF EXISTS `subjects`;
 CREATE TABLE `subjects` (
-  `code` int(11) NOT NULL,
+  `code` char(3) NOT NULL,
   `name` varchar(100) NOT NULL,
   `abbreviation` varchar(20) NOT NULL,
   PRIMARY KEY(`code`)
@@ -169,6 +169,20 @@ LOAD DATA
 
 LOAD DATA
     LOCAL
+    INFILE 'data/instructors.csv' REPLACE
+    INTO TABLE instructors
+    FIELDS 
+      TERMINATED BY ','
+      ENCLOSED BY '"'
+    LINES TERMINATED BY '\n'
+    IGNORE 1 ROWS
+        (id,@vname)
+        SET 
+        name = if(@vname='null', NULL, @vname);
+
+
+LOAD DATA
+    LOCAL
     INFILE 'data/rooms.csv' REPLACE
     INTO TABLE rooms
     FIELDS 
@@ -181,10 +195,116 @@ LOAD DATA
         room_code  = if(@vroom_code='null', NULL, @vroom_code);
 
 
+LOAD DATA
+    LOCAL
+    INFILE 'data/schedules.csv' REPLACE
+    INTO TABLE schedules
+    FIELDS 
+      TERMINATED BY ','
+      ENCLOSED BY '"'
+    LINES TERMINATED BY '\n'
+    IGNORE 1 ROWS
+        (uuid,start_time,end_time,@vmon,@vtues,@vwed,@vthurs,@vfri,@vsat,@vsun)
+        SET 
+        mon = if(@vmon='true', 1, 0),
+        tues = if(@vtues='true', 1, 0),
+        wed = if(@vwed='true', 1, 0),
+        thurs = if(@vthurs='true', 1, 0),
+        fri = if(@vfri='true', 1, 0),
+        sat = if(@vsat='true', 1, 0),
+        sun = if(@vsun='true', 1, 0);
+
+
+LOAD DATA
+    LOCAL
+    INFILE 'data/sections.csv' REPLACE
+    INTO TABLE sections
+    FIELDS 
+      TERMINATED BY ','
+      ENCLOSED BY '"'
+    LINES TERMINATED BY '\n'
+    IGNORE 1 ROWS
+        (uuid,course_offering_uuid,section_type,number,@vroom_uuid,schedule_uuid)
+        SET 
+        room_uuid  = if(@vroom_uuid='null', NULL, @vroom_uuid);
+
+
+LOAD DATA
+    LOCAL
+    INFILE 'data/subject_memberships.csv' REPLACE
+    INTO TABLE subject_memberships
+    FIELDS 
+      TERMINATED BY ','
+      ENCLOSED BY '"'
+    LINES TERMINATED BY '\n'
+    IGNORE 1 ROWS
+        (subject_code,course_offering_uuid);
+
+
+LOAD DATA
+    LOCAL
+    INFILE 'data/subjects.csv' REPLACE
+    INTO TABLE subjects
+    FIELDS 
+      TERMINATED BY ','
+      ENCLOSED BY '"'
+    LINES TERMINATED BY '\n'
+    IGNORE 1 ROWS
+        (code,name,abbreviation);
+
+
+LOAD DATA
+    LOCAL
+    INFILE 'data/teachings.csv' REPLACE
+    INTO TABLE teachings
+    FIELDS 
+      TERMINATED BY ','
+      ENCLOSED BY '"'
+    LINES TERMINATED BY '\n'
+    IGNORE 1 ROWS
+        (instructor_id,section_uuid);
 
 
 
 -- -------------------------------------------------------------
 -- CREATE FOREIGN KEY RELATIONSHIPS AND ADD INDEXES
 -- -------------------------------------------------------------
+SET FOREIGN_KEY_CHECKS = 1;
+
+ALTER TABLE course_offerings
+ADD FOREIGN KEY (course_uuid) REFERENCES courses(uuid);
+
+ALTER TABLE grade_distributions
+ADD FOREIGN KEY (course_offering_uuid) REFERENCES course_offerings(uuid),
+
+-- cant apply this FK relationship because sections have multiple section types
+-- ALTER TABLE grade_distributions
+-- ADD FOREIGN KEY (course_offering_uuid,section_number) REFERENCES sections(course_offering_uuid,number);
+
+
+
+
+-- ALTER TABLE instructors
+
+
+-- ALTER TABLE rooms
+
+
+-- ALTER TABLE schedules
+
+
+ALTER TABLE sections
+ADD FOREIGN KEY (course_offering_uuid) REFERENCES course_offerings(uuid),
+ADD FOREIGN KEY (room_uuid) REFERENCES rooms(uuid),
+ADD FOREIGN KEY (schedule_uuid) REFERENCES schedules(uuid);
+
+ALTER TABLE subject_memberships
+ADD FOREIGN KEY (subject_code) REFERENCES subjects(code),
+ADD FOREIGN KEY (course_offering_uuid) REFERENCES course_offerings(uuid);
+
+-- ALTER TABLE subjects
+
+ALTER TABLE teachings
+ADD FOREIGN KEY (instructor_id) REFERENCES instructors(id),
+ADD FOREIGN KEY (section_uuid) REFERENCES sections(uuid);
 
