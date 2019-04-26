@@ -151,7 +151,6 @@ def view_data():
     df = pd.DataFrame({'A': [0, 1, 2, 3, 4],
                    'B': [5, 6, 7, 8, 9],
                    'C': ['a', 'b', 'c--', 'd', 'e']})
-    print(df.to_html())
     return render_template('viewdata.html',  tables=[df.to_html(classes='data')], titles=df.columns.values)
 
 
