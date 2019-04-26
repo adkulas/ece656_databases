@@ -1,0 +1,8 @@
+#!/bin/bash
+python -m venv env
+env/bin/pip install --upgrade pip setuptools
+env/bin/pip install -r requirements.txt
+source env/bin/activate
+cd server
+export FLASK_APP=server.py
+python -m flask run

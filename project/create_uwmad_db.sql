@@ -18,7 +18,6 @@ CREATE TABLE `course_offerings` (
   PRIMARY KEY (`uuid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-
 DROP TABLE IF EXISTS `courses`;
 CREATE TABLE `courses` (
   `uuid` varchar(100) NOT NULL,
@@ -120,7 +119,6 @@ CREATE TABLE `teachings` (
   `section_uuid` varchar(100) NOT NULL,
   PRIMARY KEY(`instructor_id`,`section_uuid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
 
 
 
@@ -282,8 +280,6 @@ ADD FOREIGN KEY (course_offering_uuid) REFERENCES course_offerings(uuid);
 -- ADD FOREIGN KEY (course_offering_uuid,section_number) REFERENCES sections(course_offering_uuid,number);
 
 
-
-
 -- ALTER TABLE instructors
 
 
@@ -300,11 +296,59 @@ ADD FOREIGN KEY (schedule_uuid) REFERENCES schedules(uuid);
 
 ALTER TABLE subject_memberships
 ADD FOREIGN KEY (subject_code) REFERENCES subjects(code),
-ADD FOREIGN KEY (course_offering_uuid) REFERENCES course_offerings(uuid);
+ADD FOREIGN KEY (course_offering_uuid) REFERENCES course_offerings(uuid) ON DELETE CASCADE;
 
 -- ALTER TABLE subjects
 
 ALTER TABLE teachings
 ADD FOREIGN KEY (instructor_id) REFERENCES instructors(id),
 ADD FOREIGN KEY (section_uuid) REFERENCES sections(uuid);
+
+
+
+
+-- -------------------------------------------------------------
+-- CREATE BACKUP
+-- -------------------------------------------------------------
+
+DROP TABLE IF EXISTS backup_course_offerings;
+CREATE TABLE backup_course_offerings LIKE course_offerings; 
+INSERT backup_course_offerings SELECT * FROM course_offerings;
+
+DROP TABLE IF EXISTS backup_courses;
+CREATE TABLE backup_courses LIKE courses; 
+INSERT backup_courses SELECT * FROM courses;
+
+DROP TABLE IF EXISTS backup_grade_distributions;
+CREATE TABLE backup_grade_distributions LIKE grade_distributions; 
+INSERT backup_grade_distributions SELECT * FROM grade_distributions;
+
+DROP TABLE IF EXISTS backup_instructors;
+CREATE TABLE backup_instructors LIKE instructors; 
+INSERT backup_instructors SELECT * FROM instructors;
+
+DROP TABLE IF EXISTS backup_rooms;
+CREATE TABLE backup_rooms LIKE rooms; 
+INSERT backup_rooms SELECT * FROM rooms;
+
+DROP TABLE IF EXISTS backup_schedules;
+CREATE TABLE backup_schedules LIKE schedules; 
+INSERT backup_schedules SELECT * FROM schedules;
+
+DROP TABLE IF EXISTS backup_sections;
+CREATE TABLE backup_sections LIKE sections; 
+INSERT backup_sections SELECT * FROM sections;
+
+DROP TABLE IF EXISTS backup_course_offerings;
+CREATE TABLE backup_subject_memberships LIKE subject_memberships; 
+INSERT backup_subject_memberships SELECT * FROM subject_memberships;
+
+DROP TABLE IF EXISTS backup_subjects;
+CREATE TABLE backup_subjects LIKE subjects; 
+INSERT backup_subjects SELECT * FROM subjects;
+
+DROP TABLE IF EXISTS backup_teachings;
+CREATE TABLE backup_teachings LIKE teachings; 
+INSERT backup_teachings SELECT * FROM teachings;
+
 

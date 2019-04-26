@@ -1,0 +1,32 @@
+<!doctype html>
+{% block head %}
+<title>{% block title %}Welcome{% endblock %} | Flask (A Python Microframework)</title>
+<meta charset=utf-8>
+<link rel=stylesheet type=text/css href="{{ url_for('static', filename='style.css') }}">
+<script type=text/javascript
+  src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
+{% endblock %}
+<div class=box>
+  {% block body_title %}
+    <h1><span>{{ self.title() }}</span></h1>
+  {% endblock %}
+  <p class=nav>
+    <a href="{{ url_for('home') }}">Home</a> //
+    <a href="{{ url_for('select_data') }}">Select Data</a> //
+    <a href="{{ url_for('clean_data') }}">Clean Data</a> //
+    <a href="{{ url_for('mine_data') }}">Mine Data</a> //
+    <a href="{{ url_for('view_data') }}">View Data</a> //
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+      <ul>
+      {% for message in messages %}
+        <li>{{ message[1] }}</li>
+      {% endfor %}
+      </ul>
+  {% endif %}
+  {% endwith %}
+  {% block body %}{% endblock %}
+  <p class=footer>
+    &copy; Copyright 2019
+</div>
