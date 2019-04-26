@@ -124,6 +124,58 @@ PREPARE STMT FROM ‘SELECT * FROM test ORDER BY RAND() LIMIT ?’;
 EXECUTE STMT USING @rows;
 
 SET @a=1;
+
+
 SELECT @rows := ROUND(COUNT(*) * 20/100) FROM test;
 PREPARE STMT FROM 'SELECT * FROM test ORDER BY RAND() LIMIT ?';
 EXECUTE STMT USING @rows;
+
+SELECT @rows := ROUND(COUNT(*) * 20/100) FROM test;
+PREPARE STMT FROM 'DELETE FROM test ORDER BY RAND() LIMIT ?';
+EXECUTE STMT USING @rows;
+
+
+
+
+
+
+
+
+
+
+SELECT
+course_offering_uuid,
+(4.0 * a_count + 3.5 * ab_count + 3.0 * b_count + 2.5 * bc_count + 2 * c_count + 1 * d_count) / IF((a_count + ab_count + b_count + bc_count + c_count + d_count + f_count)=0,1,(a_count + ab_count + b_count + bc_count + c_count + d_count + f_count)) AS avg_gpa,
+a_count + ab_count + b_count + bc_count + c_count + d_count + f_count AS num_grades
+FROM grade_distributions
+LIMIT 10;
+
+ALTER TABLE grade_distributions
+ADD avg_gpa float,
+ADD num_grades int(11);
+
+UPDATE grade_distributions as t1
+INNER JOIN
+  (
+    SELECT
+    course_offering_uuid,
+    (4.0 * a_count + 3.5 * ab_count + 3.0 * b_count + 2.5 * bc_count + 2 * c_count + 1 * d_count) / IF((a_count + ab_count + b_count + bc_count + c_count + d_count + f_count)=0,1,(a_count + ab_count + b_count + bc_count + c_count + d_count + f_count)) AS avg_gpa,
+    a_count + ab_count + b_count + bc_count + c_count + d_count + f_count AS num_grades
+    FROM grade_distributions
+  ) AS t2
+USING (course_offering_uuid)
+SET t1.avg_gpa = t2.avg_gpa, t1.num_grades = t2.num_grades;
+
+
+SELECT t1.course_offering_uuid,t2.*
+FROM grade_distributions as t1
+INNER JOIN
+  (
+    SELECT
+    course_offering_uuid,
+    (4.0 * a_count + 3.5 * ab_count + 3.0 * b_count + 2.5 * bc_count + 2 * c_count + 1 * d_count) / IF((a_count + ab_count + b_count + bc_count + c_count + d_count + f_count)=0,1,(a_count + ab_count + b_count + bc_count + c_count + d_count + f_count)) AS avg_gpa,
+    a_count + ab_count + b_count + bc_count + c_count + d_count + f_count AS num_grades
+    FROM grade_distributions
+  ) AS t2
+USING(course_offering_uuid)
+LIMIT 10;

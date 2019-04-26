@@ -162,7 +162,7 @@ def clean_data_operation():
             result = replace_nulls(table, selected_columns, method="mean")
 
         if operation == "Convert to average GPA":
-            result = replace_nulls(table, selected_columns, method="mean")
+            result = convert_to_average_gpa()
 
         if result:
             flash("The Query was successful")
@@ -269,9 +269,16 @@ def sample_data(table, engine=engine):
     try:
         r1 = conn.execute(text(f"SELECT COUNT(*) FROM {table};"))
         count = r1.first()[0]
-        r2 = conn.execute(text(f"DELETE FROM {table} ORDER BY RAND() LIMIT {round(count*0.8)};"))
+        r2 = conn.execute(
+            text(f"DELETE FROM {table} ORDER BY RAND() LIMIT {round(count*0.8)};")
+        )
+        r3 = conn.execute(text(f"SELECT COUNT(*) FROM {table};"))
+        count_after = r3.first()[0]
 
         trans.commit()
+        flash(
+            f"The table has been reduced from {count} records to {count_after} records"
+        )
 
     except Exception as e:
         flash(e)
@@ -283,16 +290,36 @@ def sample_data(table, engine=engine):
     return True
 
 
-def convert_to_average_gpa():
+def convert_to_average_gpa(engine=engine):
     conn = engine.connect()
     trans = conn.begin()
 
     try:
-        r1 = conn.execute(text(f"SELECT COUNT(*) FROM {table};"))
-        count = r1.first()[0]
-        r2 = conn.execute(text(f"DELETE FROM {table} ORDER BY RAND() LIMIT {round(count*0.8)};"))
+        r1 = conn.execute(
+            text(
+                """ALTER TABLE grade_distributions
+                    ADD avg_gpa float,
+                    ADD num_grades int(11);"""
+            )
+        )
+        r2 = conn.execute(
+            text(
+                """UPDATE grade_distributions as t1
+                    INNER JOIN
+                    (
+                        SELECT
+                        course_offering_uuid,
+                        (4.0 * a_count + 3.5 * ab_count + 3.0 * b_count + 2.5 * bc_count + 2 * c_count + 1 * d_count) / IF((a_count + ab_count + b_count + bc_count + c_count + d_count + f_count)=0,1,(a_count + ab_count + b_count + bc_count + c_count + d_count + f_count)) AS avg_gpa,
+                        a_count + ab_count + b_count + bc_count + c_count + d_count + f_count AS num_grades
+                        FROM grade_distributions
+                    ) AS t2
+                    USING (course_offering_uuid)
+                    SET t1.avg_gpa = t2.avg_gpa, t1.num_grades = t2.num_grades;"""
+            )
+        )
 
         trans.commit()
+        flash("Columns avg_gpa and num_grades successfully created")
 
     except Exception as e:
         flash(e)
@@ -301,7 +328,12 @@ def convert_to_average_gpa():
         return False
 
     conn.close()
-    return True  
+    return True
+
+
+create_decision_tree_classifier():
+    pass
+
 
 
 
