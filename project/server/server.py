@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, MetaData, inspect
 from flask import Flask, render_template, flash, request, redirect, url_for
 from wtforms import (
     Form,
@@ -11,14 +11,16 @@ from wtforms import (
     SelectMultipleField,
     RadioField,
 )
+import pandas as pd
 
 # App config.
 DEBUG = True
 app = Flask(__name__)
 app.config.from_object(__name__)
 app.config["SECRET_KEY"] = "7d441f27d441f27567d441f2b6176a"
-engine = create_engine("mysql+mysqlconnector://ece656project:ece656projectpass@localhost/UWmadison")
-
+engine = create_engine(
+    "mysql+mysqlconnector://ece656project:ece656projectpass@localhost/UWmadison"
+)
 
 
 class ReusableForm(Form):
@@ -29,6 +31,7 @@ class MultiCheckboxField(SelectMultipleField):
     widget = widgets.ListWidget(prefix_label=False)
     option_widget = widgets.CheckboxInput()
 
+
 class SimpleForm(Form):
     string_of_files = ["one\r\ntwo\r\nthree\r\n"]
     list_of_files = string_of_files[0].split()
@@ -36,12 +39,17 @@ class SimpleForm(Form):
     files = [(x, x) for x in list_of_files]
     example = MultiCheckboxField("Label", choices=files)
 
+
 class CleanOperationForm(Form):
-    operation = RadioField('Select Operation To perform', choices=[(1,1), (2,2), (3,3)])
-    columns = MultiCheckboxField("Table_Name")
+    operation = RadioField(
+        "Select Operation To perform", choices=[('Replace Nulls', 'Replace Nulls'), ('Sample Data', 'Sample Data'), ('Normalize Data', 'Normalize Data'),],
+        validators=[validators.required()]
+    )
+    columns = MultiCheckboxField("Table_Name", validators=[validators.required()])
+
 
 class CleanDataForm(Form):
-    tables = SelectMultipleField('REPLACE_LABEL', validators=[validators.required()])
+    tables = SelectMultipleField("REPLACE_LABEL", validators=[validators.required()])
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -79,20 +87,19 @@ def select_data():
 @app.route("/cleandata", methods=["GET", "POST"])
 def clean_data():
     form = CleanDataForm(request.form)
-    
+
     table_names = engine.table_names()
 
-    choices = [(x, x) for x in table_names if not x.startswith('backup_')]
-    form.tables.label = 'Select a table to clean'
+    choices = [(x, x) for x in table_names if not x.startswith("backup_")]
+    form.tables.label = "Select a table to clean"
     form.tables.choices = choices
-     
+
     if request.method == "POST":
         selected_table = request.form["tables"]
-
         print(selected_table)
 
         if form.validate():
-            return redirect(url_for('clean_data_operation', table_name=selected_table))
+            return redirect(url_for("clean_data_operation", table_name=selected_table))
             pass
             # Save the comment here.
             # flash("Your form was valid")
@@ -105,36 +112,29 @@ def clean_data():
 @app.route("/cleandata/operation", methods=["GET", "POST"])
 def clean_data_operation():
 
-    table = request.args.get('table_name')  
+    table = request.args.get("table_name")
     form = CleanOperationForm(request.form)
     print(table)
-    
-    table_names = [
-        "course_offerings",
-        "courses",
-        "grade_distributions",
-        "instructors",
-        "rooms",
-        "schedules",
-        "sections",
-        "subject_memberships",
-        "subjects",
-        "teachings",
-    ]
 
-    choices = [(x, x) for x in table_names]
-    form.columns.label = "New_Name"
+    inspector = inspect(engine)
+    columns = [x["name"] for x in inspector.get_columns(table)]
+
+    choices = [(x, x) for x in columns]
+    form.columns.label = "Select columns from the {0} table to apply operation to".format(
+        table
+    )
     form.columns.choices = choices
 
     if request.method == "POST":
-        operation = request.form["operation"]
-        print(operation)
+        operation = request.form.get('operation')
+        selected_columns = request.form.getlist("columns")
+        print(operation, selected_columns)
 
         if form.validate():
             # Save the comment here.
             flash("Your form was valid")
         else:
-            flash("All the form fields are required. ")
+            flash("All the form fields are required.")
 
     return render_template("cleandataoperation.html", form=form)
 
@@ -148,7 +148,11 @@ def mine_data():
 @app.route("/viewdata", methods=["GET", "POST"])
 def view_data():
 
-    return render_template("layout.html")
+    df = pd.DataFrame({'A': [0, 1, 2, 3, 4],
+                   'B': [5, 6, 7, 8, 9],
+                   'C': ['a', 'b', 'c--', 'd', 'e']})
+    print(df.to_html())
+    return render_template('viewdata.html',  tables=[df.to_html(classes='data')], titles=df.columns.values)
 
 
 if __name__ == "__main__":

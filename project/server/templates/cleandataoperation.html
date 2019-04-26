@@ -7,15 +7,7 @@
         {{ render_field(form.operation) }}
         {{ render_field(form.columns) }}
     </dl>
-    <p><input type=submit value=Select>
+    <p><input type=submit value=Run Operation>
     </form>
-
-    <ul>
-        <li ><a href="{{ url_for('home') }}">Home</a> </li>
-        <li ><a href="{{ url_for('select_data') }}">Select Data</a> </li>
-        <li ><a href="{{ url_for('clean_data') }}">Clean Data</a> </li>
-        <li ><a href="{{ url_for('mine_data') }}">Mine Data</a> </li>
-        <li ><a href="{{ url_for('view_data') }}">View Data</a> </li>
-    </ul>
 
 {% endblock %}
