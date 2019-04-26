@@ -715,7 +715,6 @@ CREATE TABLE backup_teachings LIKE teachings;
 INSERT backup_teachings SELECT * FROM teachings;
 
 
-
 -- -------------------------------------------------------------
 -- CREATE USER FOR THE CLIENT/SERVER APPLICATION
 -- -------------------------------------------------------------
