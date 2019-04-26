@@ -264,47 +264,6 @@ LOAD DATA
 
 
 
--- -------------------------------------------------------------
--- CREATE FOREIGN KEY RELATIONSHIPS AND ADD INDEXES
--- -------------------------------------------------------------
-SET FOREIGN_KEY_CHECKS = 1;
-
-ALTER TABLE course_offerings
-ADD FOREIGN KEY (course_uuid) REFERENCES courses(uuid);
-
-ALTER TABLE grade_distributions
-ADD FOREIGN KEY (course_offering_uuid) REFERENCES course_offerings(uuid);
-
--- cant apply this FK relationship because sections have multiple section types
--- ALTER TABLE grade_distributions
--- ADD FOREIGN KEY (course_offering_uuid,section_number) REFERENCES sections(course_offering_uuid,number);
-
-
--- ALTER TABLE instructors
-
-
--- ALTER TABLE rooms
-
-
--- ALTER TABLE schedules
-
-
-ALTER TABLE sections
-ADD FOREIGN KEY (course_offering_uuid) REFERENCES course_offerings(uuid),
-ADD FOREIGN KEY (room_uuid) REFERENCES rooms(uuid),
-ADD FOREIGN KEY (schedule_uuid) REFERENCES schedules(uuid);
-
-ALTER TABLE subject_memberships
-ADD FOREIGN KEY (subject_code) REFERENCES subjects(code),
-ADD FOREIGN KEY (course_offering_uuid) REFERENCES course_offerings(uuid) ON DELETE CASCADE;
-
--- ALTER TABLE subjects
-
-ALTER TABLE teachings
-ADD FOREIGN KEY (instructor_id) REFERENCES instructors(id),
-ADD FOREIGN KEY (section_uuid) REFERENCES sections(uuid);
-
-
 
 
 -- -------------------------------------------------------------
@@ -350,5 +309,52 @@ INSERT backup_subjects SELECT * FROM subjects;
 DROP TABLE IF EXISTS backup_teachings;
 CREATE TABLE backup_teachings LIKE teachings; 
 INSERT backup_teachings SELECT * FROM teachings;
+
+
+
+
+
+-- -------------------------------------------------------------
+-- CREATE FOREIGN KEY RELATIONSHIPS AND ADD INDEXES
+-- -------------------------------------------------------------
+SET FOREIGN_KEY_CHECKS = 1;
+
+ALTER TABLE course_offerings
+ADD FOREIGN KEY (course_uuid) REFERENCES courses(uuid);
+
+ALTER TABLE grade_distributions
+ADD FOREIGN KEY (course_offering_uuid) REFERENCES course_offerings(uuid);
+
+-- cant apply this FK relationship because sections have multiple section types
+-- ALTER TABLE grade_distributions
+-- ADD FOREIGN KEY (course_offering_uuid,section_number) REFERENCES sections(course_offering_uuid,number);
+
+
+-- ALTER TABLE instructors
+
+
+-- ALTER TABLE rooms
+
+
+-- ALTER TABLE schedules
+
+
+ALTER TABLE sections
+ADD FOREIGN KEY (course_offering_uuid) REFERENCES course_offerings(uuid),
+ADD FOREIGN KEY (room_uuid) REFERENCES rooms(uuid),
+ADD FOREIGN KEY (schedule_uuid) REFERENCES schedules(uuid);
+
+ALTER TABLE subject_memberships
+ADD FOREIGN KEY (subject_code) REFERENCES subjects(code),
+ADD FOREIGN KEY (course_offering_uuid) REFERENCES course_offerings(uuid) ON DELETE CASCADE;
+
+-- ALTER TABLE subjects
+
+ALTER TABLE teachings
+ADD FOREIGN KEY (instructor_id) REFERENCES instructors(id),
+ADD FOREIGN KEY (section_uuid) REFERENCES sections(uuid);
+
+
+
 
 
