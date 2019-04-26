@@ -352,3 +352,12 @@ CREATE TABLE backup_teachings LIKE teachings;
 INSERT backup_teachings SELECT * FROM teachings;
 
 
+
+
+-- -------------------------------------------------------------
+-- CREATE USER FOR THE CLIENT/SERVER APPLICATION
+-- -------------------------------------------------------------
+CREATE USER 'ece656project'@'localhost';
+GRANT ALL PRIVILEGES ON UWmadison.* To 'ece656project'@'localhost' IDENTIFIED BY 'ece656projectpass';
+
+
