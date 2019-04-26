@@ -4,8 +4,10 @@
 {% from "_formhelpers.html" import render_field %}
     <form method=post>
     <dl>
-        {{ render_field(form.tables) }}
+        {{ render_field(form.operation) }}
+        {{ render_field(form.columns) }}
     </dl>
-    <p><input type=submit value=Select>
+    <p><input type=submit value=Run Operation>
     </form>
+
 {% endblock %}

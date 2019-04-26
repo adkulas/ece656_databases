@@ -1,3 +1,5 @@
+
+DROP DATABASE IF EXISTS `UWmadison`;
 CREATE DATABASE IF NOT EXISTS `UWmadison` /*!40100 DEFAULT CHARACTER SET utf8 */;
 USE `UWmadison`;
 
@@ -356,5 +358,10 @@ ADD FOREIGN KEY (section_uuid) REFERENCES sections(uuid);
 
 
 
+-- -------------------------------------------------------------
+-- CREATE USER FOR THE CLIENT/SERVER APPLICATION
+-- -------------------------------------------------------------
+CREATE USER 'ece656project'@'localhost';
+GRANT ALL PRIVILEGES ON UWmadison.* To 'ece656project'@'localhost' IDENTIFIED BY 'ece656projectpass';
 
 
