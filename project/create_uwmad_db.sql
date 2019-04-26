@@ -339,7 +339,7 @@ DROP TABLE IF EXISTS backup_sections;
 CREATE TABLE backup_sections LIKE sections; 
 INSERT backup_sections SELECT * FROM sections;
 
-DROP TABLE IF EXISTS backup_course_offerings;
+DROP TABLE IF EXISTS backup_subject_memberships;
 CREATE TABLE backup_subject_memberships LIKE subject_memberships; 
 INSERT backup_subject_memberships SELECT * FROM subject_memberships;
 
