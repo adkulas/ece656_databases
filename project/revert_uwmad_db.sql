@@ -42,4 +42,4 @@ DROP TABLE IF EXISTS teachings;
 CREATE TABLE teachings LIKE backup_teachings; 
 INSERT teachings SELECT * FROM backup_teachings;
 
- SET FOREIGN_KEY_CHECKS=1;
+SET FOREIGN_KEY_CHECKS=1;

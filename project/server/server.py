@@ -1,5 +1,5 @@
 from sqlalchemy import create_engine
-from flask import Flask, render_template, flash, request, redirect
+from flask import Flask, render_template, flash, request, redirect, url_for
 from wtforms import (
     Form,
     TextField,
@@ -41,7 +41,7 @@ class CleanOperationForm(Form):
     columns = MultiCheckboxField("Table_Name")
 
 class CleanDataForm(Form):
-    tables = SelectMultipleField('REPLACE_LABEL')
+    tables = SelectMultipleField('REPLACE_LABEL', validators=[validators.required()])
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -87,11 +87,12 @@ def clean_data():
     form.tables.choices = choices
      
     if request.method == "POST":
-        tables = request.form["tables"]
-        print(tables)
+        selected_table = request.form["tables"]
+
+        print(selected_table)
 
         if form.validate():
-            
+            return redirect(url_for('clean_data_operation', table_name=selected_table))
             pass
             # Save the comment here.
             # flash("Your form was valid")
@@ -106,6 +107,7 @@ def clean_data_operation():
 
     table = request.args.get('table_name')  
     form = CleanOperationForm(request.form)
+    print(table)
     
     table_names = [
         "course_offerings",
