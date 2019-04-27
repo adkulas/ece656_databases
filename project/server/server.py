@@ -48,14 +48,6 @@ class CleanOperationForm(Form):
             ),
             ("Drop Nulls", "Drop Nulls"),
             ("Sample Data", "Sample Data (random sample of 20% of data) "),
-            (
-                "Normalize Data Min Max",
-                "Normalize Data (Min-Max nomralization Must be numeric)",
-            ),
-            (
-                "Normalize Data Z-score",
-                "Normalize Data (Z-score nomralization Must be numeric)",
-            ),
         ],
         validators=[validators.required()],
     )
@@ -102,9 +94,9 @@ def home():
 
 @app.route("/selectdata", methods=["GET", "POST"])
 def select_data():
-    
+
     run_flag = request.args.get("run")
-    if run_flag == 'True':
+    if run_flag == "True":
         call_revert_database(engine)
 
     if request.method == "POST":
@@ -205,7 +197,7 @@ def clean_data_operation():
 def mine_data():
 
     run_flag = request.args.get("run")
-    if run_flag == 'True':
+    if run_flag == "True":
         call_stored_procedure(engine)
     form = MiningParameters(request.form)
 
@@ -245,9 +237,10 @@ def view_data():
 
         df = pd.read_sql(f"SELECT * FROM {selected_table}", engine).head(100)
         return render_template(
-            "viewdata.html", tables=[df.to_html(classes="data")], titles=df.columns.values
+            "viewdata.html",
+            tables=[df.to_html(classes="data")],
+            titles=df.columns.values,
         )
-
 
         if form.validate():
             return redirect(url_for("clean_data_operation", table_name=selected_table))
@@ -423,6 +416,7 @@ def call_stored_procedure(engine=engine):
     conn.close()
     return True
 
+
 def call_revert_database(engine=engine):
     conn = engine.connect()
     trans = conn.begin()
@@ -438,7 +432,7 @@ def create_decision_tree_classifier(
     max_depth=None, criterion="mse", min_impurity_decrease=0.0, splitter="best"
 ):
 
-    if 'course_offering_mining' not in engine.table_names():
+    if "course_offering_mining" not in engine.table_names():
         flash("Please Run Stored Procedure Before Creating Model")
         return False
 

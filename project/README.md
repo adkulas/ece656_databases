@@ -23,3 +23,24 @@ Create the virtual environment, download dependencies and run the server by exec
 ```
 
 The webserver will be running and the website can be reached at [localhost:5000](http://localhost:5000)
+
+
+## Basic Use
+### Clean Data
+This Allows you to select a table and apply an operation to it to clean values.
+You can
+ - Reaplce Nulls with mode, mean, or median
+ - Drop nulls
+ - Sample data
+ - Convert grade distribution to average gpa
+
+### Revert Database
+Restore database of any changes made by cleaning tools
+
+### Mine Data
+Runs a stored procedure to create new features on the dataset
+
+A decision tree algorithm is created to predict grades based on the features
+
+### View data
+Allows you to view valeus in a table
