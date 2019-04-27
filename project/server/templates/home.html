@@ -7,25 +7,61 @@
 {% endblock %}
 {% block body %}
   {{ super() }}
-  <h1 id="installingandpreparingenvironment">Installing and Preparing environment</h1>
+<h1 id="installingandpreparingenvironment">Installing and Preparing environment</h1>
 
-  <h2 id="createdatabase">Create Database</h2>
+<h2 id="createdatabase">Create Database</h2>
 
-  <p>First you must create the database. Use the following command to create the mysql database:</p>
+<p>First you must create the database. Use the following command to create the mysql database:</p>
 
-  <pre><code class="console language-console">mysql -u root -p &lt; create_uwmad_db.sql
-  </code></pre>
+<pre><code class="console language-console">mysql -u root -p &lt; create_uwmad_db.sql
+</code></pre>
 
-  <p>This will create a database called <code>UWmadison</code> and it will also create a user that the client/server application will to execute queries for the selection options. 
-  The username is <code>ece656project</code>, and the password is <code>ece656projectpass</code></p>
+<p>This will create a database called <code>UWmadison</code> and it will also create a user that the client/server application will to execute queries for the selection options. 
+The username is <code>ece656project</code>, and the password is <code>ece656projectpass</code></p>
 
-  <h2 id="setuppythonenvironment">Setup python environment</h2>
+<h2 id="setuppythonenvironment">Setup python environment</h2>
 
-  <p>Python3 is used for the server application. Make sure that your <code>python</code> command points to python 3.x 
-  You can check this with:</p>
+<p>Python3 is used for the server application. Make sure that your <code>python</code> command points to python 3.x 
+You can check this with:</p>
 
-  <pre><code class="console language-console">python --version
-  </code></pre>
+<pre><code class="console language-console">python --version
+</code></pre>
 
-  <p>Create the virtual environment, download dependencies
+<p>Create the virtual environment, download dependencies and run the server by executing the <code>run</code> script</p>
+
+<pre><code class="console language-console">./run
+</code></pre>
+
+<p>The webserver will be running and the website can be reached at <a href="http://localhost:5000">localhost:5000</a></p>
+
+<h2 id="basicuse">Basic Use</h2>
+
+<h3 id="cleandata">Clean Data</h3>
+
+<p>This Allows you to select a table and apply an operation to it to clean values.
+You can</p>
+
+<ul>
+<li>Reaplce Nulls with mode, mean, or median</li>
+
+<li>Drop nulls</li>
+
+<li>Sample data</li>
+
+<li>Convert grade distribution to average gpa</li>
+</ul>
+
+<h3 id="revertdatabase">Revert Database</h3>
+
+<p>Restore database of any changes made by cleaning tools</p>
+
+<h3 id="minedata">Mine Data</h3>
+
+<p>Runs a stored procedure to create new features on the dataset</p>
+
+<p>A decision tree algorithm is created to predict grades based on the features</p>
+
+<h3 id="viewdata">View data</h3>
+
+<p>Allows you to view valeus in a table</p>
 {% endblock %}
