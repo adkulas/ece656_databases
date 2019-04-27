@@ -10,9 +10,11 @@ from wtforms import (
     widgets,
     SelectMultipleField,
     RadioField,
+    IntegerField,
+    DecimalField,
 )
 import pandas as pd
-from sklearn.tree import DecisionTreeClassifier
+from sklearn.tree import DecisionTreeRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 
@@ -62,6 +64,19 @@ class CleanOperationForm(Form):
 
 class CleanDataForm(Form):
     tables = SelectMultipleField("REPLACE_LABEL", validators=[validators.required()])
+
+
+class MiningParameters(Form):
+    splitter = RadioField(
+        "Select splitter (Default=Best)",
+        choices=[("best", "best"), ("random", "random")],
+    )
+    max_depth = IntegerField("max_depth (default=None)")
+    criterion = RadioField(
+        "Select splitting measure (Default=mse)",
+        choices=[("mse", "mse"), ("friedman_mse", "friedman_mse"), ("mae", "mae")],
+    )
+    min_impurity_decrease = DecimalField("min_impurity_decrease (Default=0.0)")
 
 
 # Views
@@ -190,8 +205,26 @@ def clean_data_operation():
 @app.route("/minedata", methods=["GET", "POST"])
 def mine_data():
 
+    form = MiningParameters(request.form)
 
-    return render_template("minedata.html")
+    if request.method == "POST":
+
+        splitter = request.form.get("splitter")
+        max_depth = request.form.get("max_depth")
+        criterion = request.form.get("criterion")
+        min_impurity_decrease = request.form.get("min_impurity_decrease")
+
+        print(splitter, max_depth, criterion, min_impurity_decrease)
+
+        call_stored_procedure(engine)
+        create_decision_tree_classifier(
+            splitter=splitter,
+            max_depth=max_depth,
+            criterion=criterion,
+            min_impurity_decrease=min_impurity_decrease,
+        )
+
+    return render_template("minedata.html", form=form)
 
 
 @app.route("/viewdata", methods=["GET", "POST"])
@@ -347,12 +380,47 @@ def convert_to_average_gpa(engine=engine):
 # Mining Algorithms
 
 
+def call_stored_procedure(engine=engine):
+    conn = engine.connect()
+    trans = conn.begin()
+
+    with open("../stored_procedure.sql", "r") as f:
+        content = f.read()
+
+    sql = text(
+        """
+        SELECT "HELLO";
+        """)
+
+    try:
+        conn.execute(sql)
+        # r1.first()
+        trans.commit()
+        flash("Stored procedure has been run in the background to create dataset")
+
+    except Exception as e:
+        flash(e)
+        trans.rollback()
+        conn.close()
+        return False
+
+    conn.close()
+    return True
+
+
 def create_decision_tree_classifier(
-    X, Y, max_depth=None, criterion="gini", min_impurity_decrease=0.0
+    max_depth=None, criterion="mse", min_impurity_decrease=0.0, splitter="best"
 ):
-    dtree = DecisionTreeClassifier(
-        random_state=1337, max_depth=None, criterion="gini", min_impurity_decrease=0.0
+    dtree = DecisionTreeRegressor(
+        random_state=1337,
+        max_depth=max_depth,
+        criterion=criterion,
+        min_impurity_decrease=min_impurity_decrease,
+        splitter=splitter,
     )
+    flash(dtree)
+
+
 
 
 if __name__ == "__main__":

@@ -4,7 +4,10 @@
 {% from "_formhelpers.html" import render_field %}
     <form method=post>
     <dl>
-        {{ render_field(form.tables) }}
+        {{ render_field(form.splitter) }}
+        {{ render_field(form.max_depth) }}
+        {{ render_field(form.criterion) }}
+        {{ render_field(form.min_impurity_decrease) }}
     </dl>
     <p><input type=submit value=Select>
     </form>
