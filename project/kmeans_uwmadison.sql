@@ -86,7 +86,7 @@ END//
   GROUP BY i.id
   HAVING avg_num_grades >= 30
   ORDER BY avg_gpa DESC
-  LIMIT 15
+  LIMIT 15;
 
 
 

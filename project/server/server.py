@@ -12,6 +12,9 @@ from wtforms import (
     RadioField,
 )
 import pandas as pd
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 
 # App config.
 DEBUG = True
@@ -21,6 +24,9 @@ app.config["SECRET_KEY"] = "7d441f27d441f27567d441f2b6176a"
 engine = create_engine(
     "mysql+mysqlconnector://ece656project:ece656projectpass@localhost/UWmadison"
 )
+
+
+# Forms
 
 
 class MultiCheckboxField(SelectMultipleField):
@@ -56,6 +62,9 @@ class CleanOperationForm(Form):
 
 class CleanDataForm(Form):
     tables = SelectMultipleField("REPLACE_LABEL", validators=[validators.required()])
+
+
+# Views
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -181,7 +190,8 @@ def clean_data_operation():
 @app.route("/minedata", methods=["GET", "POST"])
 def mine_data():
 
-    return render_template("layout.html")
+
+    return render_template("minedata.html")
 
 
 @app.route("/viewdata", methods=["GET", "POST"])
@@ -193,6 +203,9 @@ def view_data():
     return render_template(
         "viewdata.html", tables=[df.to_html(classes="data")], titles=df.columns.values
     )
+
+
+# Cleanup Functions
 
 
 def replace_nulls(table, columns, method="mean", engine=engine):
@@ -331,10 +344,15 @@ def convert_to_average_gpa(engine=engine):
     return True
 
 
-create_decision_tree_classifier():
-    pass
+# Mining Algorithms
 
 
+def create_decision_tree_classifier(
+    X, Y, max_depth=None, criterion="gini", min_impurity_decrease=0.0
+):
+    dtree = DecisionTreeClassifier(
+        random_state=1337, max_depth=None, criterion="gini", min_impurity_decrease=0.0
+    )
 
 
 if __name__ == "__main__":
