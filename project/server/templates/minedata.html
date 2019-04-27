@@ -1,6 +1,9 @@
 {% extends "layout.html" %}
 
 {% block body %}
+<p>
+    <a href="{{ url_for('mine_data', run=True) }}">Generate Dataset using stored procedure</a>
+</p>
 {% from "_formhelpers.html" import render_field %}
     <form method=post>
     <dl>

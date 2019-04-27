@@ -42,24 +42,29 @@ DROP TABLE IF EXISTS teachings;
 CREATE TABLE teachings LIKE backup_teachings; 
 INSERT teachings SELECT * FROM backup_teachings;
 
-SET FOREIGN_KEY_CHECKS=1;
 
--- SET FOREIGN KEYS
+select "Alter course offerings";
 ALTER TABLE course_offerings
-ADD FOREIGN KEY (course_uuid) REFERENCES courses(uuid);
+ADD FOREIGN KEY (course_uuid) REFERENCES courses(uuid) ON DELETE CASCADE ON UPDATE CASCADE;
 
+select "Alter grade dist";
 ALTER TABLE grade_distributions
-ADD FOREIGN KEY (course_offering_uuid) REFERENCES course_offerings(uuid);
+ADD FOREIGN KEY (course_offering_uuid) REFERENCES course_offerings(uuid) ON DELETE CASCADE ON UPDATE CASCADE;
 
+select "Alter Sections";
 ALTER TABLE sections
-ADD FOREIGN KEY (course_offering_uuid) REFERENCES course_offerings(uuid),
-ADD FOREIGN KEY (room_uuid) REFERENCES rooms(uuid),
-ADD FOREIGN KEY (schedule_uuid) REFERENCES schedules(uuid);
+ADD FOREIGN KEY (course_offering_uuid) REFERENCES course_offerings(uuid) ON DELETE CASCADE ON UPDATE CASCADE,
+ADD FOREIGN KEY (room_uuid) REFERENCES rooms(uuid) ON DELETE CASCADE ON UPDATE CASCADE,
+ADD FOREIGN KEY (schedule_uuid) REFERENCES schedules(uuid) ON DELETE CASCADE ON UPDATE CASCADE;
 
+select "Alter Subjects";
 ALTER TABLE subject_memberships
-ADD FOREIGN KEY (subject_code) REFERENCES subjects(code),
-ADD FOREIGN KEY (course_offering_uuid) REFERENCES course_offerings(uuid) ON DELETE CASCADE;
+ADD FOREIGN KEY (subject_code) REFERENCES subjects(code) ON DELETE CASCADE ON UPDATE CASCADE,
+ADD FOREIGN KEY (course_offering_uuid) REFERENCES course_offerings(uuid) ON DELETE CASCADE ON UPDATE CASCADE;
 
+select "Alter teachings";
 ALTER TABLE teachings
-ADD FOREIGN KEY (instructor_id) REFERENCES instructors(id),
-ADD FOREIGN KEY (section_uuid) REFERENCES sections(uuid);
+ADD FOREIGN KEY (instructor_id) REFERENCES instructors(id) ON DELETE CASCADE ON UPDATE CASCADE,
+ADD FOREIGN KEY (section_uuid) REFERENCES sections(uuid) ON DELETE CASCADE ON UPDATE CASCADE;
+
+SET FOREIGN_KEY_CHECKS=1;

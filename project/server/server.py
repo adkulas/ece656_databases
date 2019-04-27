@@ -16,7 +16,7 @@ from wtforms import (
 import pandas as pd
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 # App config.
 DEBUG = True
@@ -102,16 +102,15 @@ def home():
 
 @app.route("/selectdata", methods=["GET", "POST"])
 def select_data():
-    form = CleanDataForm(request.form)
+    
+    run_flag = request.args.get("run")
+    if run_flag == 'True':
+        call_revert_database(engine)
 
     if request.method == "POST":
-        if form.validate():
-            print(request.form)
-            print("Hello")
-        else:
-            print(form.errors)
+        pass
 
-    return render_template("selectdata.html", form=form)
+    return render_template("selectdata.html")
 
 
 @app.route("/cleandata", methods=["GET", "POST"])
@@ -205,6 +204,9 @@ def clean_data_operation():
 @app.route("/minedata", methods=["GET", "POST"])
 def mine_data():
 
+    run_flag = request.args.get("run")
+    if run_flag == 'True':
+        call_stored_procedure(engine)
     form = MiningParameters(request.form)
 
     if request.method == "POST":
@@ -216,7 +218,6 @@ def mine_data():
 
         print(splitter, max_depth, criterion, min_impurity_decrease)
 
-        call_stored_procedure(engine)
         create_decision_tree_classifier(
             splitter=splitter,
             max_depth=max_depth,
@@ -230,12 +231,33 @@ def mine_data():
 @app.route("/viewdata", methods=["GET", "POST"])
 def view_data():
 
-    df = pd.DataFrame(
-        {"A": [0, 1, 2, 3, 4], "B": [5, 6, 7, 8, 9], "C": ["a", "b", "c--", "d", "e"]}
-    )
-    return render_template(
-        "viewdata.html", tables=[df.to_html(classes="data")], titles=df.columns.values
-    )
+    form = CleanDataForm(request.form)
+
+    table_names = engine.table_names()
+
+    choices = [(x, x) for x in table_names if not x.startswith("backup_")]
+    form.tables.label = "Select a table to clean"
+    form.tables.choices = choices
+
+    if request.method == "POST":
+        selected_table = request.form["tables"]
+        print(selected_table)
+
+        df = pd.read_sql(f"SELECT * FROM {selected_table}", engine).head(100)
+        return render_template(
+            "viewdata.html", tables=[df.to_html(classes="data")], titles=df.columns.values
+        )
+
+
+        if form.validate():
+            return redirect(url_for("clean_data_operation", table_name=selected_table))
+            pass
+            # Save the comment here.
+            # flash("Your form was valid")
+        else:
+            flash("A selection is required.")
+
+    return render_template("cleandata.html", form=form)
 
 
 # Cleanup Functions
@@ -384,13 +406,7 @@ def call_stored_procedure(engine=engine):
     conn = engine.connect()
     trans = conn.begin()
 
-    with open("../stored_procedure.sql", "r") as f:
-        content = f.read()
-
-    sql = text(
-        """
-        SELECT "HELLO";
-        """)
+    sql = text("CALL GetDataset()")
 
     try:
         conn.execute(sql)
@@ -407,10 +423,25 @@ def call_stored_procedure(engine=engine):
     conn.close()
     return True
 
+def call_revert_database(engine=engine):
+    conn = engine.connect()
+    trans = conn.begin()
+
+    flash("Calling revert on database")
+    sql = text("CALL RevertDatabase()")
+    engine.execute(sql)
+
+    return True
+
 
 def create_decision_tree_classifier(
     max_depth=None, criterion="mse", min_impurity_decrease=0.0, splitter="best"
 ):
+
+    if 'course_offering_mining' not in engine.table_names():
+        flash("Please Run Stored Procedure Before Creating Model")
+        return False
+
     dtree = DecisionTreeRegressor(
         random_state=1337,
         max_depth=max_depth,
@@ -420,7 +451,34 @@ def create_decision_tree_classifier(
     )
     flash(dtree)
 
+    # Get data from database
+    df = pd.read_sql("SELECT * FROM course_offering_mining", engine, index_col="cid")
+    df = df.dropna()
+    y = df["avg_gpa"].values
+    X = df.drop("avg_gpa", axis=1).values
 
+    # split data into train test split
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.30, random_state=42
+    )
+
+    # train decision tree
+    dtree = DecisionTreeRegressor()
+    dtree.fit(X_train, y_train)
+
+    # score results on holdout data
+    y_pred = dtree.predict(X_test)
+    r2 = r2_score(y_test, y_pred)
+    mse = mean_squared_error(y_test, y_pred)
+    mae = mean_absolute_error(y_test, y_pred)
+    flash(
+        f"""The classifer has been trained on {df.shape[0]} Samples. 70% of the samples
+        were used to train the model the remaining 30% were used for validation. The model
+        was able to predict grades with a r2 accuracy of {r2}, mean squared error of {mse}
+        and mean absolute error of {mae}"""
+    )
+
+    return True
 
 
 if __name__ == "__main__":

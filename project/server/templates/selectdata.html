@@ -1,11 +1,7 @@
 {% extends "layout.html" %}
 
 {% block body %}
-{% from "_formhelpers.html" import render_field %}
-<form method=post>
-  <dl>
-    {{ render_field(form.tables) }}
-  </dl>
-  <p><input type=submit value=Register>
-</form>
+<p>
+    <a href="{{ url_for('select_data', run=True) }}">Restore database to original state</a>
+</p>
 {% endblock %}
